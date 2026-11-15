@@ -714,7 +714,7 @@ export const NPCS: Record<string, NpcDef> = {
             action: {
               type: 'start_quest',
               questId: 'outrider_oath',
-              log: 'Archivist Lyra asked Garth Elfstrom to attune 2 Elven Waystones (◈) in the sunken vaults.',
+              log: 'Archivist Lyra asked Garth "Big Dick" Elfstrom to attune 2 Elven Waystones (◈) in the sunken vaults.',
             },
             nextNodeId: 'root',
           },
@@ -722,7 +722,7 @@ export const NPCS: Record<string, NpcDef> = {
       },
       outrider_reward: {
         id: 'outrider_reward',
-        text: 'Silver dust rises from Lyra’s astrolabe as the subterranean beacons answer in unison. "The Silver Bough shines again, Garth Elfstrom. Choose which Starlight Relic shall accompany you to the Sanctum."',
+        text: 'Silver dust rises from Lyra’s astrolabe as the subterranean beacons answer in unison. "The Silver Bough shines again, Garth "Big Dick" Elfstrom. Choose which Starlight Relic shall accompany you to the Sanctum."',
         choices: [
           {
             id: 'take_sylvan_blade',

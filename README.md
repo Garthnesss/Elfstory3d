@@ -1,6 +1,6 @@
 # ElfStory 3D
 
-A 2.5D isometric remake of **ElfStory** — the turn-based tactical dungeon-crawler RPG in the browser starring elven outrider Garth Elfstrom. Built with React 19 · TypeScript · Three.js (2.5D orthographic isometric WebGL renderer + crisp 2D projected HUD) · Vite · Tailwind CSS v4 · procedural Web Audio SFX & music · optional Firebase cloud saves.
+A 2.5D isometric remake of **ElfStory** — the turn-based tactical dungeon-crawler RPG in the browser starring elven outrider Garth "Big Dick" Elfstrom. Built with React 19 · TypeScript · Three.js (2.5D orthographic isometric WebGL renderer + crisp 2D projected HUD) · Vite · Tailwind CSS v4 · procedural Web Audio SFX & music · optional Firebase cloud saves.
 
 ## What’s New in 2.5D Isometric
 - **3D Extruded Terrain & Architecture** (`src/game/isoSceneBuilder.ts`, `src/game/isoMaterials.ts`): Biome-matched 3D stone masonry walls, 3D pine/elven trees, stone pillars, descending/ascending staircases, market stalls, city gates, vault monoliths, recessed animated water/fountains, and deep glowing chasms.

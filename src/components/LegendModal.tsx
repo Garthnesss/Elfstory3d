@@ -58,7 +58,7 @@ export const LegendModal: React.FC<LegendModalProps> = ({ onClose, onReplayTutor
           <div>
             <h2 className="font-display text-base sm:text-lg font-bold text-amber-200">Delver’s Field Guide</h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              Garth Elfstrom’s chronicle, dungeon props, combat telegraphs, and desktop/phone controls.
+              Garth "Big Dick" Elfstrom’s chronicle, dungeon props, combat telegraphs, and desktop/phone controls.
             </p>
           </div>
           <button

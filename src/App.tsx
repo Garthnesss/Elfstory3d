@@ -332,7 +332,7 @@ function createInitialPlayer(starterClass: PlayerState['starterClass']): PlayerS
   const starterWeapon = createStarterItem(preset.weaponTag);
   const companionKind: CompanionKind = starterClass === 'Runecaster' ? 'starlight_owl' : 'silverwind_lynx';
   const basePlayer: PlayerState = {
-    name: 'Garth Elfstrom',
+    name: 'Garth "Big Dick" Elfstrom',
     starterClass,
     x: 12,
     y: 9,
@@ -492,7 +492,7 @@ export default function App() {
     {
       id: 'init_1',
       turn: 0,
-      text: 'Garth Elfstrom arrives at Oakhaven Outpost. Speak with Warden Vance or descend the southern stairs.',
+      text: 'Garth "Big Dick" Elfstrom arrives at Oakhaven Outpost. Speak with Warden Vance or descend the southern stairs.',
       tone: 'quest',
     },
   ]);
@@ -1364,7 +1364,7 @@ export default function App() {
         {
           id: uid('log'),
           turn: 0,
-          text: `Garth Elfstrom arrives in Oakhaven under the ${starterClass} oath, tasked with reclaiming the Ashen Glyph before the Ember Blight spreads.`,
+          text: `Garth "Big Dick" Elfstrom arrives in Oakhaven under the ${starterClass} oath, tasked with reclaiming the Ashen Glyph before the Ember Blight spreads.`,
           tone: 'quest',
         },
         {
@@ -1558,7 +1558,7 @@ export default function App() {
       {
         id: uid('log'),
         turn: 0,
-        text: `The Ashen Glyph turns once more. Garth Elfstrom ascends to Cycle ${nextCycle} — the Vale is remade, its foes hardened, and everything earned is carried into the new descent.`,
+        text: `The Ashen Glyph turns once more. Garth "Big Dick" Elfstrom ascends to Cycle ${nextCycle} — the Vale is remade, its foes hardened, and everything earned is carried into the new descent.`,
         tone: 'quest',
       },
       {

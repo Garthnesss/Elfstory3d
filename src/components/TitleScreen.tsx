@@ -269,7 +269,7 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
               </svg>
 
               <p className="text-sm text-[#D6CEBE] leading-relaxed max-w-lg">
-                An elven outrider drawn south by the awakening of the Ashen Glyph, <span className="text-amber-200 font-medium">Garth Elfstrom</span> descends
+                An elven outrider drawn south by the awakening of the Ashen Glyph, <span className="text-amber-200 font-medium">Garth &ldquo;Big Dick&rdquo; Elfstrom</span> descends
                 beneath Oakhaven Outpost and Highspire Citadel. Read enemy windups, inscribe cooldown Runes &amp; Infusions,
                 claim Milestone Prodigies, and confront Sovereign Malakor.
               </p>
