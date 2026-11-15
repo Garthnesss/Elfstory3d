@@ -2,7 +2,7 @@ import { User } from 'firebase/auth';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CornerDownLeft, Gamepad2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActionDock } from './components/ActionDock';
-import { IsometricCanvas } from './components/IsometricCanvas';
+import { PerspectiveCanvas } from './components/PerspectiveCanvas';
 import { CharacterSkillsModal } from './components/CharacterSkillsModal';
 import { CreditsScreen } from './components/CreditsScreen';
 import { DialogueModal } from './components/DialogueModal';
@@ -23,6 +23,7 @@ import { TownUpgradesModal } from './components/TownUpgradesModal';
 import { TravelModal } from './components/TravelModal';
 import { resolveMusicTheme, soundEngine } from './game/audio';
 import { CameraYawIndex, normalizeYawIndex, rotateStepByYaw } from './game/isoCamera';
+import type { CameraViewMode } from './game/perspectiveCamera';
 import {
   DIFFICULTY_INFO,
   DifficultyTier,
@@ -462,6 +463,36 @@ export default function App() {
     } catch {
       // ignore
     }
+  }, []);
+
+  const [viewMode, setViewMode] = useState<CameraViewMode>(() => {
+    try {
+      const v = localStorage.getItem('elfstory3d-view-mode');
+      if (v === 'chase' || v === 'first' || v === 'tactical') return v;
+    } catch {
+      // ignore
+    }
+    return 'chase';
+  });
+  const handleViewModeChange = useCallback((next: CameraViewMode) => {
+    setViewMode(next);
+    try {
+      localStorage.setItem('elfstory3d-view-mode', next);
+    } catch {
+      // ignore
+    }
+  }, []);
+  const handleCycleViewMode = useCallback(() => {
+    setViewMode((cur) => {
+      const order: CameraViewMode[] = ['chase', 'first', 'tactical'];
+      const next = order[(order.indexOf(cur) + 1) % order.length];
+      try {
+        localStorage.setItem('elfstory3d-view-mode', next);
+      } catch {
+        // ignore
+      }
+      return next;
+    });
   }, []);
 
   const [showSettings, setShowSettings] = useState(false);
@@ -5634,6 +5665,7 @@ export default function App() {
     cameraYawIndex,
     attemptStep,
     handleCameraYawChange,
+    handleCycleViewMode,
     handleTriggerHotbar,
     handleTriggerInscription,
     handleQuickHeal,
@@ -5659,6 +5691,7 @@ export default function App() {
       cameraYawIndex,
       attemptStep,
       handleCameraYawChange,
+      handleCycleViewMode,
       handleTriggerHotbar,
       handleTriggerInscription,
       handleQuickHeal,
@@ -5682,6 +5715,7 @@ export default function App() {
     cameraYawIndex,
     attemptStep,
     handleCameraYawChange,
+    handleCycleViewMode,
     handleTriggerHotbar,
     handleTriggerInscription,
     handleQuickHeal,
@@ -5789,7 +5823,20 @@ export default function App() {
       // keymap resolver (game/settings.ts). Arrow keys always move and
       // Enter always interacts via the resolver's hardcoded fallbacks.
       const action = resolveKeyAction(s.keymap, e.key);
-      if (!action) return;
+      if (!action) {
+        const lower = e.key.toLowerCase();
+        if (lower === 'v') {
+          e.preventDefault();
+          s.handleCycleViewMode();
+        } else if (lower === 'c') {
+          e.preventDefault();
+          s.handleCameraYawChange(normalizeYawIndex(s.cameraYawIndex - 1));
+        } else if (lower === 'e') {
+          e.preventDefault();
+          s.handleCameraYawChange(normalizeYawIndex(s.cameraYawIndex + 1));
+        }
+        return;
+      }
       switch (action) {
         case 'moveUp': {
           e.preventDefault();
@@ -6486,7 +6533,7 @@ export default function App() {
 
       {/* Main Playfield Canvas */}
       <main className="relative flex-1 min-h-0">
-        <IsometricCanvas
+        <PerspectiveCanvas
           zone={currentZone}
           player={player}
           armedSkill={armedSkill}
@@ -6500,7 +6547,9 @@ export default function App() {
           tileSize={tileSize}
           patternSignals={settings.patternSignals}
           cameraYawIndex={cameraYawIndex}
+          viewMode={viewMode}
           onCameraYawChange={handleCameraYawChange}
+          onViewModeChange={handleViewModeChange}
           onTileSizeChange={handleTileSizeChange}
           onTileClick={handleTileClick}
           onStep={(dx, dy) => {

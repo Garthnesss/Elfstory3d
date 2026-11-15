@@ -11,7 +11,7 @@
 // Bump the cache name to retire old shells; activation deletes every
 // other cache.
 
-const CACHE_NAME = 'elfstory-shell-v2';
+const CACHE_NAME = 'elfstory-shell-v3';
 const SHELL_PATHS = ['./', './index.html', './manifest.webmanifest', './icons/emblem.svg'];
 const shellUrl = (path) => new URL(path, self.registration.scope).toString();
 const INDEX_URL = shellUrl('./index.html');
@@ -39,6 +39,15 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
+  const reqUrl = new URL(request.url);
+  // Never cache unhashed Vite dev modules or HMR endpoints.
+  if (
+    reqUrl.pathname.startsWith('/src/') ||
+    reqUrl.pathname.startsWith('/@') ||
+    reqUrl.pathname.startsWith('/node_modules/')
+  ) {
+    return;
+  }
   if (request.mode === 'navigate') {
     // Fresh page when the network answers; the cached index when it doesn't.
     event.respondWith(

@@ -9,9 +9,7 @@ import {
   getStructTexture,
   getWallSideTexture,
   getWallTopTexture,
-  textureFromCanvas,
 } from './isoMaterials';
-import { getPropSprite } from './sprites';
 import { BiomeId, getBiomePalette, pickTileVariant } from './tileset';
 import { Tile, TileKind, ZoneMap } from './types';
 
@@ -19,6 +17,7 @@ export type TileVisState = 'hidden' | 'memory' | 'lit';
 
 export interface IsoGeometries {
   floor: THREE.PlaneGeometry;
+  ceiling: THREE.PlaneGeometry;
   wallBox: THREE.BoxGeometry;
   wallCap: THREE.BoxGeometry;
   chasmPit: THREE.BoxGeometry;
@@ -67,6 +66,9 @@ export function createIsoGeometries(): IsoGeometries {
   const floor = new THREE.PlaneGeometry(1, 1);
   floor.rotateX(-Math.PI / 2);
 
+  const ceiling = new THREE.PlaneGeometry(1, 1);
+  ceiling.rotateX(Math.PI / 2);
+
   const decal = new THREE.PlaneGeometry(0.92, 0.92);
   decal.rotateX(-Math.PI / 2);
 
@@ -87,15 +89,16 @@ export function createIsoGeometries(): IsoGeometries {
 
   return {
     floor,
+    ceiling,
     wallBox: new THREE.BoxGeometry(1, 1, 1),
     wallCap: new THREE.BoxGeometry(1.04, 0.1, 1.04),
     chasmPit: new THREE.BoxGeometry(0.98, 0.72, 0.98),
     pillarBase: new THREE.BoxGeometry(0.6, 0.14, 0.6),
-    pillarShaft: new THREE.CylinderGeometry(0.18, 0.22, 0.94, 8),
-    pillarCap: new THREE.BoxGeometry(0.56, 0.14, 0.56),
-    treeTrunk: new THREE.CylinderGeometry(0.09, 0.15, 0.52, 7),
-    treeFoliageA: new THREE.DodecahedronGeometry(0.38, 0),
-    treeFoliageB: new THREE.DodecahedronGeometry(0.28, 0),
+    pillarShaft: new THREE.CylinderGeometry(0.2, 0.24, 1.48, 8),
+    pillarCap: new THREE.BoxGeometry(0.58, 0.16, 0.58),
+    treeTrunk: new THREE.CylinderGeometry(0.11, 0.17, 0.74, 7),
+    treeFoliageA: new THREE.DodecahedronGeometry(0.42, 0),
+    treeFoliageB: new THREE.DodecahedronGeometry(0.32, 0),
     stepTread: new THREE.BoxGeometry(0.76, 0.12, 0.2),
     stepWall: new THREE.BoxGeometry(0.12, 0.34, 0.9),
     pedestal: new THREE.BoxGeometry(0.62, 0.18, 0.62),
@@ -112,9 +115,9 @@ export function createIsoGeometries(): IsoGeometries {
     stallPost: new THREE.BoxGeometry(0.07, 0.88, 0.07),
     stallRoof: new THREE.BoxGeometry(0.94, 0.12, 0.78),
     stallGood: new THREE.BoxGeometry(0.13, 0.13, 0.13),
-    gatePost: new THREE.BoxGeometry(0.26, 1.2, 0.28),
-    gateLintel: new THREE.BoxGeometry(1.02, 0.24, 0.32),
-    gatePortal: new THREE.PlaneGeometry(0.54, 0.92),
+    gatePost: new THREE.BoxGeometry(0.26, 1.56, 0.28),
+    gateLintel: new THREE.BoxGeometry(1.02, 0.26, 0.32),
+    gatePortal: new THREE.PlaneGeometry(0.58, 1.32),
     fountainBasin,
     fountainWater,
     fountainSpire: new THREE.CylinderGeometry(0.08, 0.14, 0.44, 8),
@@ -215,8 +218,10 @@ export interface TileNode {
   kind: TileKind;
   group: THREE.Group;
   groundMesh: THREE.Mesh;
+  ceilingMesh?: THREE.Mesh;
   wallMesh?: THREE.Mesh;
   wallCapMesh?: THREE.Mesh;
+  wallBaseHeight: number;
   fluidMesh?: THREE.Mesh;
   hazardMesh?: THREE.Mesh;
   propBillboard?: THREE.Mesh;
@@ -237,13 +242,6 @@ export interface TileNode {
   lastCutaway: boolean;
   lastAnimFrame: number;
 }
-
-const PROP_BILLBOARD_KINDS = new Set<TileKind>([
-  'herb_node',
-  'contraband_cache',
-  'whispering_bell',
-  'vault_door',
-]);
 
 const ANIMATED_FLUID_KINDS = new Set<TileKind>(['water', 'fountain', 'chasm']);
 const ANIMATED_HAZARD_KINDS = new Set<TileKind>([
@@ -282,6 +280,7 @@ export function buildZoneTerrain(
   const animatedNodes: TileNode[] = [];
   const atmo = getBiomeAtmosphere(biome);
   const palette = getBiomePalette(biome);
+  const isEnclosedDungeon = zone.depth >= 1 && !zone.isTown;
 
   for (let y = 0; y < zone.height; y++) {
     for (let x = 0; x < zone.width; x++) {
@@ -320,8 +319,22 @@ export function buildZoneTerrain(
       groundMesh.receiveShadow = true;
       group.add(groundMesh);
 
+      let ceilingMesh: THREE.Mesh | undefined;
+      if (isEnclosedDungeon && tile.kind !== 'wall' && tile.kind !== 'chasm') {
+        const ceilMat = mats.getLambert(`ceilMat:${biome}:${biomeVariant % 4}`, () =>
+          new THREE.MeshLambertMaterial({
+            map: getWallTopTexture(biome, biomeVariant),
+            color: 0x6b7280,
+          })
+        );
+        ceilingMesh = new THREE.Mesh(geos.ceiling, ceilMat);
+        ceilingMesh.position.y = 2.04;
+        group.add(ceilingMesh);
+      }
+
       let wallMesh: THREE.Mesh | undefined;
       let wallCapMesh: THREE.Mesh | undefined;
+      let wallBaseHeight = 1.92;
       let fluidMesh: THREE.Mesh | undefined;
       let hazardMesh: THREE.Mesh | undefined;
       let propBillboard: THREE.Mesh | undefined;
@@ -333,7 +346,8 @@ export function buildZoneTerrain(
       let tallHeight = 0;
 
       if (tile.kind === 'wall') {
-        const wallH = 1.08 + (biomeVariant % 3) * 0.08;
+        const wallH = 1.84 + (biomeVariant % 3) * 0.09;
+        wallBaseHeight = wallH;
         wallMesh = new THREE.Mesh(geos.wallBox, mats.getWallArray(biome, biomeVariant, 'lit'));
         wallMesh.scale.set(1, wallH, 1);
         wallMesh.position.y = wallH / 2;
@@ -346,7 +360,7 @@ export function buildZoneTerrain(
           new THREE.MeshLambertMaterial({ map: getWallTopTexture(biome, biomeVariant) })
         );
         wallCapMesh = new THREE.Mesh(geos.wallCap, capMat);
-        wallCapMesh.position.y = wallH - 0.04;
+        wallCapMesh.position.y = wallH - 0.03;
         addShadowFlag(wallCapMesh, true, true);
         group.add(wallCapMesh);
 
@@ -362,16 +376,16 @@ export function buildZoneTerrain(
         const base = new THREE.Mesh(geos.pillarBase, stoneMat);
         base.position.y = 0.07;
         const shaft = new THREE.Mesh(geos.pillarShaft, stoneMat);
-        shaft.position.y = 0.61;
+        shaft.position.y = 0.88;
         const cap = new THREE.Mesh(geos.pillarCap, capMat);
-        cap.position.y = 1.15;
+        cap.position.y = 1.7;
         addShadowFlag(base, true, true);
         addShadowFlag(shaft, true, true);
         addShadowFlag(cap, true, true);
         group.add(base, shaft, cap);
         structureMeshes.push(base, shaft, cap);
         isTallObstacle = true;
-        tallHeight = 1.24;
+        tallHeight = 1.82;
       } else if (tile.kind === 'tree') {
         const trunkMat = mats.getLambert(`trunk:${biome}:lit`, () =>
           new THREE.MeshLambertMaterial({ color: atmo.trunkHex })
@@ -383,22 +397,22 @@ export function buildZoneTerrain(
           new THREE.MeshLambertMaterial({ color: atmo.foliageSecondary })
         );
         const trunk = new THREE.Mesh(geos.treeTrunk, trunkMat);
-        trunk.position.y = 0.26;
+        trunk.position.y = 0.37;
         addShadowFlag(trunk, true, true);
         group.add(trunk);
 
         treeCrownGroup = new THREE.Group();
-        treeCrownGroup.position.y = 0.68;
+        treeCrownGroup.position.y = 0.92;
         const c1 = new THREE.Mesh(geos.treeFoliageA, leaf1Mat);
         c1.position.set(-0.08, 0, 0.06);
-        c1.scale.set(1.05, 0.9, 1.05);
+        c1.scale.set(1.08, 0.95, 1.08);
         c1.rotation.y = propVariant * 0.6;
         const c2 = new THREE.Mesh(geos.treeFoliageA, leaf2Mat);
-        c2.position.set(0.12, 0.22, -0.06);
-        c2.scale.set(0.85, 0.85, 0.85);
+        c2.position.set(0.12, 0.28, -0.06);
+        c2.scale.set(0.88, 0.9, 0.88);
         c2.rotation.y = propVariant * 1.1;
         const c3 = new THREE.Mesh(geos.treeFoliageB, leaf2Mat);
-        c3.position.set(-0.02, 0.44, 0.02);
+        c3.position.set(-0.02, 0.56, 0.02);
         addShadowFlag(c1, true, true);
         addShadowFlag(c2, true, true);
         addShadowFlag(c3, true, false);
@@ -406,7 +420,7 @@ export function buildZoneTerrain(
         group.add(treeCrownGroup);
         structureMeshes.push(trunk, c1, c2, c3);
         isTallObstacle = true;
-        tallHeight = 1.3;
+        tallHeight = 1.7;
       } else if (tile.kind === 'fountain') {
         const basinMat = mats.getLambert(`fountainRim:lit`, () =>
           new THREE.MeshLambertMaterial({ color: 0x94a3b8 })
@@ -598,22 +612,27 @@ export function buildZoneTerrain(
             side: THREE.DoubleSide,
           })
         );
+        const gateGroup = new THREE.Group();
         const left = new THREE.Mesh(geos.gatePost, gateMat);
-        left.position.set(-0.36, 0.6, 0);
+        left.position.set(-0.36, 0.78, 0);
         const right = new THREE.Mesh(geos.gatePost, gateMat);
-        right.position.set(0.36, 0.6, 0);
+        right.position.set(0.36, 0.78, 0);
         const lintel = new THREE.Mesh(geos.gateLintel, gateMat);
-        lintel.position.set(0, 1.22, 0);
+        lintel.position.set(0, 1.58, 0);
         addShadowFlag(left, true, true);
         addShadowFlag(right, true, true);
         addShadowFlag(lintel, true, true);
 
         const portal = new THREE.Mesh(geos.gatePortal, portalMat);
-        portal.position.set(0, 0.54, 0);
-        group.add(left, right, lintel, portal);
+        portal.position.set(0, 0.72, 0);
+        gateGroup.add(left, right, lintel, portal);
+        if (x === 0 || x === zone.width - 1) {
+          gateGroup.rotation.y = Math.PI / 2;
+        }
+        group.add(gateGroup);
         structureMeshes.push(left, right, lintel);
         isTallObstacle = true;
-        tallHeight = 1.32;
+        tallHeight = 1.72;
       } else if (tile.kind === 'torch' || tile.kind === 'brazier') {
         const ironMat = mats.getLambert(`iron:lit`, () =>
           new THREE.MeshLambertMaterial({ color: 0x334155 })
@@ -829,14 +848,91 @@ export function buildZoneTerrain(
         const vMat = mats.getLambert(`vaultStone:lit`, () =>
           new THREE.MeshLambertMaterial({ color: 0x334155 })
         );
+        const ironMat = mats.getLambert(`vaultIron:lit`, () =>
+          new THREE.MeshLambertMaterial({ color: 0x1e293b })
+        );
+        const sealMat = mats.getBasic(`vaultSeal`, () =>
+          new THREE.MeshBasicMaterial({ color: 0xf59e0b })
+        );
         const vault = new THREE.Mesh(geos.wallBox, vMat);
-        vault.scale.set(0.94, 1.08, 0.94);
-        vault.position.y = 0.54;
+        vault.scale.set(0.96, 1.86, 0.96);
+        vault.position.y = 0.93;
+        const band = new THREE.Mesh(geos.wallCap, ironMat);
+        band.position.y = 0.96;
+        const seal = new THREE.Mesh(geos.crystal, sealMat);
+        seal.position.set(0, 1.0, 0);
+        seal.scale.set(1.3, 1.3, 1.3);
         addShadowFlag(vault, true, true);
-        group.add(vault);
-        structureMeshes.push(vault);
+        addShadowFlag(band, true, true);
+        group.add(vault, band, seal);
+        structureMeshes.push(vault, band);
+        animatedMesh = seal;
         isTallObstacle = true;
-        tallHeight = 1.08;
+        tallHeight = 1.86;
+      } else if (tile.kind === 'herb_node') {
+        const leafMat = mats.getLambert(`herbLeaf:lit`, () =>
+          new THREE.MeshLambertMaterial({ color: 0x10b981 })
+        );
+        const bloomMat = mats.getBasic(`herbBloom`, () =>
+          new THREE.MeshBasicMaterial({ color: 0xa7f3d0 })
+        );
+        const rootClump = new THREE.Group();
+        for (let k = 0; k < 4; k++) {
+          const leaf = new THREE.Mesh(geos.treeFoliageB, leafMat);
+          const ang = (k * Math.PI) / 2;
+          leaf.position.set(Math.cos(ang) * 0.12, 0.14, Math.sin(ang) * 0.12);
+          leaf.scale.set(0.55, 0.35, 0.55);
+          addShadowFlag(leaf, true, true);
+          rootClump.add(leaf);
+          structureMeshes.push(leaf);
+        }
+        const blossom = new THREE.Mesh(geos.crystal, bloomMat);
+        blossom.position.y = 0.32;
+        blossom.scale.set(0.6, 0.6, 0.6);
+        rootClump.add(blossom);
+        group.add(rootClump);
+        animatedMesh = blossom;
+      } else if (tile.kind === 'contraband_cache') {
+        const crateMat = mats.getLambert(`cacheCrate:lit`, () =>
+          new THREE.MeshLambertMaterial({ color: 0x78350f })
+        );
+        const bandMat = mats.getLambert(`cacheBand:lit`, () =>
+          new THREE.MeshLambertMaterial({ color: 0x334155 })
+        );
+        const crate = new THREE.Mesh(geos.chestBase, crateMat);
+        crate.scale.set(1.05, 1.35, 1.25);
+        crate.position.y = 0.17;
+        const strap = new THREE.Mesh(geos.chestTrim, bandMat);
+        strap.scale.set(1.15, 1.35, 1.28);
+        strap.position.y = 0.17;
+        addShadowFlag(crate, true, true);
+        addShadowFlag(strap, true, true);
+        group.add(crate, strap);
+        structureMeshes.push(crate, strap);
+      } else if (tile.kind === 'whispering_bell') {
+        const pillarMat = mats.getLambert(`bellStone:lit`, () =>
+          new THREE.MeshLambertMaterial({ color: 0x64748b })
+        );
+        const bellMat = mats.getLambert(`bellGold:lit`, () =>
+          new THREE.MeshLambertMaterial({ color: 0xfbbf24 })
+        );
+        const lPillar = new THREE.Mesh(geos.stallPost, pillarMat);
+        lPillar.position.set(-0.26, 0.44, 0);
+        const rPillar = new THREE.Mesh(geos.stallPost, pillarMat);
+        rPillar.position.set(0.26, 0.44, 0);
+        const beam = new THREE.Mesh(geos.gateLintel, pillarMat);
+        beam.scale.set(0.75, 0.65, 0.75);
+        beam.position.y = 0.88;
+        const bell = new THREE.Mesh(geos.flameOuter, bellMat);
+        bell.scale.set(1.6, 1.4, 1.6);
+        bell.position.y = 0.66;
+        addShadowFlag(lPillar, true, true);
+        addShadowFlag(rPillar, true, true);
+        addShadowFlag(beam, true, true);
+        addShadowFlag(bell, true, true);
+        group.add(lPillar, rPillar, beam, bell);
+        structureMeshes.push(lPillar, rPillar, beam, bell);
+        animatedMesh = bell;
       }
 
       if (tile.kind === 'trap' || tile.kind === 'dart_trap') {
@@ -869,33 +965,6 @@ export function buildZoneTerrain(
         group.add(hazardMesh);
       }
 
-      if (PROP_BILLBOARD_KINDS.has(tile.kind)) {
-        const isDeep = zone.depth >= 3;
-        const propCanvas = getPropSprite(tile.kind, Boolean(tile.used), 0, isDeep, propVariant);
-        if (propCanvas) {
-          const propTex = textureFromCanvas(
-            `prop:${tile.kind}:${tile.used ? 1 : 0}:0:${isDeep ? 1 : 0}:${propVariant}`,
-            propCanvas
-          );
-          const propMat = mats.getBasic(
-            `propMat:${tile.kind}:${tile.used ? 1 : 0}:0:${isDeep ? 1 : 0}:${propVariant}:lit`,
-            () =>
-              new THREE.MeshBasicMaterial({
-                map: propTex,
-                transparent: true,
-                alphaTest: 0.1,
-                side: THREE.DoubleSide,
-              })
-          );
-          propBillboard = new THREE.Mesh(geos.billboard, propMat);
-          propBillboard.position.y = 0.04;
-          const s = tile.kind === 'vault_door' ? 0.96 : 0.85;
-          propBillboard.scale.set(s, s, 1);
-          group.add(propBillboard);
-          billboards.push(propBillboard);
-        }
-      }
-
       root.add(group);
       const node: TileNode = {
         x,
@@ -903,8 +972,10 @@ export function buildZoneTerrain(
         kind: tile.kind,
         group,
         groundMesh,
+        ceilingMesh,
         wallMesh,
         wallCapMesh,
+        wallBaseHeight,
         fluidMesh,
         hazardMesh,
         propBillboard,
@@ -971,9 +1042,12 @@ export function syncTileNode(
     const memTint = 0x526280;
 
     if (node.wallMesh) {
-      const wState = isCutaway ? 'cutaway' : isMem ? 'memory' : 'lit';
+      const wState = isMem ? 'memory' : 'lit';
       node.wallMesh.material = mats.getWallArray(biome, node.biomeVariant, wState);
-      node.wallMesh.renderOrder = isCutaway ? 5 : 0;
+      const cutHeight = isCutaway ? 0.24 : node.wallBaseHeight;
+      node.wallMesh.scale.set(1, cutHeight, 1);
+      node.wallMesh.position.y = cutHeight / 2;
+      node.wallMesh.renderOrder = 0;
       node.wallMesh.castShadow = !isCutaway;
     }
     if (node.wallCapMesh) {
@@ -988,6 +1062,19 @@ export function syncTileNode(
             })
         );
       }
+    }
+    if (node.treeCrownGroup) {
+      node.treeCrownGroup.visible = !isCutaway;
+    }
+    if (node.ceilingMesh) {
+      node.ceilingMesh.material = mats.getLambert(
+        `ceilMat:${biome}:${node.biomeVariant % 4}:${nextState}`,
+        () =>
+          new THREE.MeshLambertMaterial({
+            map: getWallTopTexture(biome, node.biomeVariant),
+            color: isMem ? 0x3f4a5c : 0x6b7280,
+          })
+      );
     }
 
     if (node.kind !== 'water' && node.kind !== 'chasm') {
@@ -1106,30 +1193,6 @@ export function syncTileNode(
           );
         }
       }
-    }
-  }
-
-  if (node.propBillboard && (usedChanged || stateChanged || node.lastAnimFrame !== animFrame)) {
-    const isDeep = depth >= 3;
-    const f = Math.abs(animFrame) % 2;
-    const propCanvas = getPropSprite(node.kind, used, f, isDeep, node.propVariant);
-    if (propCanvas) {
-      const isMem = nextState === 'memory';
-      const propTex = textureFromCanvas(
-        `prop:${node.kind}:${used ? 1 : 0}:${f}:${isDeep ? 1 : 0}:${node.propVariant}`,
-        propCanvas
-      );
-      node.propBillboard.material = mats.getBasic(
-        `propMat:${node.kind}:${used ? 1 : 0}:${f}:${isDeep ? 1 : 0}:${node.propVariant}:${nextState}`,
-        () =>
-          new THREE.MeshBasicMaterial({
-            map: propTex,
-            color: isMem ? 0x5c6b88 : 0xffffff,
-            transparent: true,
-            alphaTest: 0.1,
-            side: THREE.DoubleSide,
-          })
-      );
     }
   }
 
