@@ -133,7 +133,7 @@ test('Phase 6 PWA: service worker has the versioned cache + navigation fallback'
   const sw = readFileSync(new URL('../public/sw.js', import.meta.url), 'utf8');
   // Phase 7: bumped to v2 to retire the v1 shell, whose cache never held
   // the app bundle (offline boot served HTML with no game in it).
-  assert.ok(sw.includes("const CACHE_NAME = 'elfstory-shell-v2'"), 'versioned shell cache name');
+  assert.ok(sw.includes("const CACHE_NAME = 'elfstory-shell-v3'"), 'versioned shell cache name');
   assert.ok(sw.includes("request.mode === 'navigate'"), 'navigation requests are handled');
   assert.ok(sw.includes('index.html'), 'navigation fallback serves the cached index');
   assert.ok(sw.includes('caches.delete'), 'activation cleans up older caches');

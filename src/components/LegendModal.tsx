@@ -39,11 +39,12 @@ const STATUS_ITEMS = [
 ];
 
 const CONTROLS = [
-  { key: 'WASD / Arrows / D-Pad', action: 'Move, melee-attack adjacent foes, or talk to NPCs (hold D-Pad to walk)' },
-  { key: '[ / ] or ↺ / ↻', action: 'Rotate the 2.5D isometric camera 90° left or right' },
-  { key: 'Swipe / Tap Tile', action: 'Swipe canvas to step 1 tile, or tap tile to path & act' },
+  { key: 'WASD / Arrows / D-Pad', action: 'Walk forward/back & strafe left/right along the direction you are facing' },
+  { key: 'Drag / C & E / [ & ]', action: 'Turn camera 90° left or right to look down corridors (costs 0 turns)' },
+  { key: 'V or 3rd / 1st / Top', action: 'Switch between 3rd-Person Chase, 1st-Person Crawl, and Overhead Cardinal 3D' },
+  { key: 'Click / Tap Tile', action: 'Click any visible tile, foe, NPC, or chest to path & act' },
   { key: 'Look / Long-Press', action: 'Inspect enemy skills, intents, shrines, or vault doors safely' },
-  { key: 'Map / - + Zoom', action: 'Toggle phone corner minimap or adjust tile size' },
+  { key: 'Map / - + Zoom', action: 'Toggle phone corner minimap or adjust chase camera distance' },
   { key: '1 – 5 / 6 – 8 / Tab', action: 'Cast Active Skills / Runes / Cycle Aimed Target' },
   { key: 'Z / R / Q / .', action: 'Auto-Explore / Safe Rest / Quick Draught / Wait 1 turn' },
   { key: 'K / I / J / M', action: 'Open Skills & Prodigies, Pack, Journal & Bestiary, or Waypoints' },
