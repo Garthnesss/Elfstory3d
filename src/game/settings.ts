@@ -257,8 +257,8 @@ export const LEGACY_MUTED_KEY = 'elfstory-muted';
 export const TILE_SIZE_KEY = 'elfstory-tile-size';
 export const TUTORIAL_DONE_KEY = 'elfstory-tutorial-done';
 
-/** Tile zoom steps, mirrored from AsciiCanvas (kept in sync deliberately:
- *  the settings menu offers exactly these three sizes). */
+/** Tile zoom steps, mirrored in PerspectiveCanvas as ZOOM_STEPS (kept in
+ *  sync deliberately: the settings menu offers exactly these three sizes). */
 export const TILE_SIZE_STEPS: readonly number[] = [28, 36, 44];
 export const DEFAULT_TILE_SIZE = 36;
 

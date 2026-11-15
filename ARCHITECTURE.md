@@ -4,7 +4,7 @@
 A single-page React app. All game logic lives in pure-ish TypeScript modules under `src/game/`; `src/App.tsx` is the game loop and state owner (5,500+ lines); `src/components/` are presentational modals/HUD/canvas driven entirely by App state. There is no server of ours — persistence is localStorage plus optional Firebase (Auth + Firestore) cloud saves.
 
 ```
-TitleScreen ──► App.tsx (turn loop, state, saves) ──► AsciiCanvas (render)
+TitleScreen ──► App.tsx (turn loop, state, saves) ──► PerspectiveCanvas (full 3D render)
                      │  ├─ src/game/world.ts    — zone & floor generation
                      │  ├─ src/game/combat.ts   — visibility, pathfinding, hit math
                      │  ├─ src/game/skills.ts   — attributes, trees, derived stats
@@ -44,7 +44,7 @@ TitleScreen ──► App.tsx (turn loop, state, saves) ──► AsciiCanvas (r
 - **`src/game/coachMarks.ts`** — one-time-per-device contextual hints, claimed at the real event points (first telegraph, first inscription, first Prodigy point).
 - **`src/game/gamepad.ts`** — pure gamepad polling/mapping (standard layout, deadzone, hold-repeat), unit-tested; App feeds it into the same dispatch as the keyboard.
 - **`src/game/lifetime.ts`** — per-device lifetime stats record (`elfstory-lifetime`, outside save bundles): expeditions, victories, deaths, kills, deepest floor, highest cycle.
-- **`src/components/`** — `AsciiCanvas` (canvas renderer + minimap + touch), `ActionDock`, `TopHud`, and modals/screens (Inventory, Merchant, Dialogue, QuestJournal, CharacterSkills, TownUpgrades, Travel, Legend, HallOfFame, EndPause, SpecialEncounter, TitleScreen, SettingsModal, EndingScreen, CreditsScreen, QuestTracker, TutorialOverlay).
+- **`src/components/`** — `PerspectiveCanvas` (Three.js full-3D renderer: chase / first-person / overhead tactical views + touch), `ActionDock`, `TopHud`, and modals/screens (Inventory, Merchant, Dialogue, QuestJournal, CharacterSkills, TownUpgrades, Travel, Legend, HallOfFame, EndPause, SpecialEncounter, TitleScreen, SettingsModal, EndingScreen, CreditsScreen, QuestTracker, TutorialOverlay).
 
 ## Data flow / protocols
 - **Turn loop:** player action in App → player resolution (combat.ts math) → companion turn → enemy turns (intent selection in combat.ts, execution in App) → DoT/status ticks → autosave checks.
