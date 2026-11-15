@@ -15,8 +15,9 @@ import {
   getBiomeAtmosphere,
   getContactShadowTexture,
   getGlowDiscTexture,
+  getLootBeamTexture,
+  getOutlinedSpriteTexture,
   getTelegraphExclaimTexture,
-  textureFromCanvas,
 } from '../game/isoMaterials';
 import {
   buildZoneTerrain,
@@ -357,23 +358,37 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
     const dprCap = Math.min(window.devicePixelRatio || 1, 2);
     renderer.setPixelRatio(dprCap);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.12;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(-10, 10, 8, -8, 0.1, 160);
     stateRef.current.camera = camera;
 
-    const hemiLight = new THREE.HemisphereLight(0xcbe8ff, 0x26382f, 1.0);
+    const hemiLight = new THREE.HemisphereLight(0xdbeafe, 0x2d4a3e, 1.25);
     scene.add(hemiLight);
 
-    const dirLight = new THREE.DirectionalLight(0xfff3d6, 1.05);
-    dirLight.position.set(14, 24, 10);
+    const dirLight = new THREE.DirectionalLight(0xfff1d0, 1.45);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.set(2048, 2048);
+    dirLight.shadow.camera.near = 2;
+    dirLight.shadow.camera.far = 65;
+    dirLight.shadow.camera.left = -16;
+    dirLight.shadow.camera.right = 16;
+    dirLight.shadow.camera.top = 16;
+    dirLight.shadow.camera.bottom = -16;
+    dirLight.shadow.bias = -0.0007;
+    dirLight.shadow.normalBias = 0.025;
     scene.add(dirLight);
+    scene.add(dirLight.target);
 
-    const playerLight = new THREE.PointLight(0xf5a82a, 2.8, 9, 1.4);
+    const playerLight = new THREE.PointLight(0xffb347, 3.8, 10.5, 1.35);
     scene.add(playerLight);
 
     const envLights: THREE.PointLight[] = Array.from({ length: 7 }, () => {
-      const pl = new THREE.PointLight(0xfb923c, 0, 7, 1.6);
+      const pl = new THREE.PointLight(0xfb923c, 0, 8, 1.45);
       scene.add(pl);
       return pl;
     });
@@ -389,9 +404,9 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
     const shadowTex = getContactShadowTexture();
     const exclaimTex = getTelegraphExclaimTexture();
 
-    // Shared helper geometries for overlays
-    const pathDotMat = new THREE.MeshBasicMaterial({ color: 0xfdf6e3 });
-    const pathStartMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
+    const beamGeo = new THREE.PlaneGeometry(0.48, 1.8);
+    beamGeo.translate(0, 0.9, 0);
+
     const teleFillMat = new THREE.MeshBasicMaterial({
       color: 0xef4444,
       transparent: true,
@@ -407,19 +422,18 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
     const hoverMat = new THREE.MeshBasicMaterial({
       color: 0xfdf6e3,
       transparent: true,
-      opacity: 0.85,
+      opacity: 0.9,
       side: THREE.DoubleSide,
       depthWrite: false,
     });
     const aimMat = new THREE.MeshBasicMaterial({
       color: 0xfde047,
       transparent: true,
-      opacity: 0.92,
+      opacity: 0.95,
       side: THREE.DoubleSide,
       depthWrite: false,
     });
 
-    // Reusable overlay object pools
     const MAX_TELE = 160;
     const teleMeshes: THREE.Mesh[] = [];
     const teleExclaims: THREE.Mesh[] = [];
@@ -449,7 +463,7 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
           new THREE.MeshBasicMaterial({
             color: 0x5b8def,
             transparent: true,
-            opacity: 0.72,
+            opacity: 0.76,
             side: THREE.DoubleSide,
             depthWrite: false,
           })
@@ -461,32 +475,50 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
       rangeMeshes.push(m);
     }
 
-    const squareFrameGeo = new THREE.RingGeometry(0.4, 0.48, 4);
+    const squareFrameGeo = new THREE.RingGeometry(0.41, 0.48, 4);
     squareFrameGeo.rotateX(-Math.PI / 2);
     squareFrameGeo.rotateY(Math.PI / 4);
     const hoverMesh = new THREE.Mesh(squareFrameGeo, hoverMat);
-    hoverMesh.position.y = 0.038;
+    hoverMesh.position.y = 0.04;
     hoverMesh.visible = false;
     overlayGroup.add(hoverMesh);
 
     const aimMesh = new THREE.Mesh(squareFrameGeo, aimMat);
-    aimMesh.position.y = 0.044;
+    aimMesh.position.y = 0.046;
     aimMesh.visible = false;
     overlayGroup.add(aimMesh);
 
+    // Sleek connected 3D path ribbon + destination ring
     const MAX_PATH = 24;
-    const pathDots: THREE.Mesh[] = [];
-    for (let i = 0; i < MAX_PATH; i++) {
-      const m = new THREE.Mesh(geos.pathDot, i === 0 ? pathStartMat : pathDotMat);
-      m.visible = false;
-      overlayGroup.add(m);
-      pathDots.push(m);
-    }
+    const pathLineGeo = new THREE.BufferGeometry();
+    const pathPositions = new Float32Array((MAX_PATH + 1) * 3);
+    pathLineGeo.setAttribute('position', new THREE.BufferAttribute(pathPositions, 3));
+    const pathLineMat = new THREE.LineBasicMaterial({
+      color: 0xfde68a,
+      transparent: true,
+      opacity: 0.85,
+    });
+    const pathLine = new THREE.Line(pathLineGeo, pathLineMat);
+    pathLine.visible = false;
+    overlayGroup.add(pathLine);
 
-    // Dynamic pools for sprites & FX
+    const pathDestMat = new THREE.MeshBasicMaterial({
+      color: 0xf59e0b,
+      transparent: true,
+      opacity: 0.85,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    });
+    const pathDestRing = new THREE.Mesh(squareFrameGeo, pathDestMat);
+    pathDestRing.position.y = 0.042;
+    pathDestRing.scale.set(0.65, 0.65, 0.65);
+    pathDestRing.visible = false;
+    overlayGroup.add(pathDestRing);
+
     const spriteMeshesPool: THREE.Mesh[] = [];
     const shadowPool: THREE.Mesh[] = [];
     const ringPool: THREE.Mesh[] = [];
+    const beamPool: THREE.Mesh[] = [];
     const sparkPool: THREE.Mesh[] = [];
     const projPool: THREE.Group[] = [];
 
@@ -520,6 +552,7 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
     };
 
     let terrainBillboards: THREE.Mesh[] = [];
+    let animatedNodes: TileNode[] = [];
     let viewW = 800;
     let viewH = 600;
 
@@ -562,7 +595,6 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
       const biome = getZoneBiome(s.zone.id, s.zone.depth);
       const atmo = getBiomeAtmosphere(biome);
 
-      // Rebuild 3D terrain if zone changed
       const zoneKey = `${s.zone.id}:${s.zone.depth}:${s.zone.width}x${s.zone.height}`;
       if (s.lastZoneKey !== zoneKey) {
         terrainContainer.clear();
@@ -570,6 +602,7 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
         terrainContainer.add(built.root);
         s.nodes = built.nodes;
         terrainBillboards = built.billboards;
+        animatedNodes = built.animatedNodes;
         s.lastZoneKey = zoneKey;
         s.camX = s.player.x;
         s.camZ = s.player.y;
@@ -580,6 +613,7 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
         s.compVisZ = s.player.companion?.y ?? s.player.y;
 
         scene.background = new THREE.Color(atmo.bgHex);
+        scene.fog = new THREE.FogExp2(atmo.fogHex, atmo.fogDensity);
         hemiLight.color.setHex(atmo.skyHex);
         hemiLight.groundColor.setHex(atmo.groundHex);
         hemiLight.intensity = atmo.hemiIntensity;
@@ -588,7 +622,6 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
         playerLight.color.setHex(atmo.playerLightHex);
       }
 
-      // Smooth camera tracking & rotation
       const camLerp = reduceMotion ? 1 : Math.min(1, dt * 11);
       s.camX += (s.player.x - s.camX) * camLerp;
       s.camZ += (s.player.y - s.camZ) * camLerp;
@@ -601,7 +634,6 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
       while (yawDiff < -Math.PI) yawDiff += Math.PI * 2;
       s.yawRad += yawDiff * (reduceMotion ? 1 : Math.min(1, dt * 14));
 
-      // Camera shake in screen space translated to world offset
       let shakeWorldX = 0;
       let shakeWorldZ = 0;
       if (!reduceMotion && now < s.shakeUntil) {
@@ -610,7 +642,6 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
         shakeWorldZ = (Math.random() - 0.5) * mag;
       }
 
-      // Orthographic camera frustum from tileSize
       const halfH = tileSizeToOrthoHalfHeight(s.tileSize, viewH);
       const aspect = viewW / viewH;
       const halfW = halfH * aspect;
@@ -620,7 +651,7 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
       camera.bottom = -halfH;
       camera.updateProjectionMatrix();
 
-      const camDist = 28;
+      const camDist = 30;
       const horizDist = camDist * Math.cos(ISO_ELEVATION_RAD);
       const vertDist = camDist * Math.sin(ISO_ELEVATION_RAD);
       const lookX = s.camX + shakeWorldX;
@@ -634,17 +665,20 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
       camera.lookAt(lookX, 0.25, lookZ);
       camera.updateMatrixWorld();
 
-      // Orient directional light slightly relative to camera for crisp 3D face contrast
+      // Sun/Moon directional key light angled across isometric diagonals for rich 3D shadows
+      const shadowSnapX = Math.round(lookX * 4) / 4;
+      const shadowSnapZ = Math.round(lookZ * 4) / 4;
       dirLight.position.set(
-        lookX + Math.cos(s.yawRad - 0.55) * 18,
-        24,
-        lookZ + Math.sin(s.yawRad - 0.55) * 18
+        shadowSnapX + Math.cos(s.yawRad - 0.85) * 16,
+        22,
+        shadowSnapZ + Math.sin(s.yawRad - 0.85) * 16
       );
+      dirLight.target.position.set(shadowSnapX, 0, shadowSnapZ);
+      dirLight.target.updateMatrixWorld();
 
       const animFrame = reduceMotion ? 0 : Math.floor(now / 280);
       const spriteFrame = reduceMotion ? 0 : Math.floor(now / 380) % 2;
 
-      // Determine focus points for wall cutaway (player + visible nearby enemies)
       const focusPoints: Array<{ x: number; y: number }> = [{ x: s.player.x, y: s.player.y }];
       for (const en of s.zone.enemies) {
         if (s.zone.tiles[en.y]?.[en.x]?.visible && chebyshev(en.x, en.y, s.player.x, s.player.y) <= 7) {
@@ -652,10 +686,9 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
         }
       }
 
-      const cullRadius = Math.ceil(Math.max(halfW, halfH) * 1.65) + 4;
+      const cullRadius = Math.ceil(Math.max(halfW, halfH) * 1.7) + 4;
       s.cutawaySet.clear();
 
-      // Update terrain visibility, fog of war, cutaway, and gather lights/embers
       const candidateLights: Array<{
         x: number;
         z: number;
@@ -664,7 +697,7 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
         phase: number;
         intensity: number;
       }> = [];
-      const emberSources: Array<{ x: number; z: number; color: number }> = [];
+      const emberSources: Array<{ x: number; z: number; color: number; isWater?: boolean }> = [];
       const isAbyss = s.zone.depth >= 5;
 
       for (let i = 0; i < s.nodes.length; i++) {
@@ -690,10 +723,6 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
 
         syncTileNode(node, tile, inRange, isCutaway, animFrame, biome, s.zone.depth, mats);
 
-        if (node.wallMesh) {
-          node.wallMesh.renderOrder = isCutaway ? 5 : 0;
-        }
-
         if (inRange && tile.visible) {
           const phase = (node.x * 17 + node.y * 31) * 0.23;
           const distSq = dx * dx + dz * dz;
@@ -701,10 +730,10 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
             candidateLights.push({
               x: node.x,
               z: node.y,
-              color: isAbyss ? 0xa855f7 : 0xfb923c,
+              color: isAbyss ? 0xa855f7 : 0xff9b3d,
               distSq,
               phase,
-              intensity: 2.2,
+              intensity: 3.1,
             });
             emberSources.push({ x: node.x, z: node.y, color: isAbyss ? 0xc084fc : 0xfdba74 });
           } else if (tile.kind === 'forgotten_forge' && !tile.used) {
@@ -714,7 +743,7 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
               color: 0xf97316,
               distSq,
               phase,
-              intensity: 2.6,
+              intensity: 3.4,
             });
             emberSources.push({ x: node.x, z: node.y, color: 0xfb923c });
           } else if (tile.kind === 'waystone' && !tile.used) {
@@ -724,17 +753,17 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
               color: 0x38bdf8,
               distSq,
               phase,
-              intensity: 2.4,
+              intensity: 3.0,
             });
             emberSources.push({ x: node.x, z: node.y, color: 0x7dd3fc });
           } else if (tile.kind === 'cursed_altar' && !tile.used) {
             candidateLights.push({
               x: node.x,
               z: node.y,
-              color: 0xc084fc,
+              color: 0xe879f9,
               distSq,
               phase,
-              intensity: 2.1,
+              intensity: 2.8,
             });
           } else if (tile.kind === 'shrine' || tile.kind === 'whispering_bell') {
             candidateLights.push({
@@ -743,8 +772,18 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
               color: 0x60a5fa,
               distSq,
               phase,
-              intensity: 2.1,
+              intensity: 2.8,
             });
+          } else if (tile.kind === 'fountain') {
+            candidateLights.push({
+              x: node.x,
+              z: node.y,
+              color: 0x38bdf8,
+              distSq,
+              phase,
+              intensity: 2.0,
+            });
+            emberSources.push({ x: node.x, z: node.y, color: 0xbae6fd, isWater: true });
           } else if (tile.kind === 'vault_door') {
             candidateLights.push({
               x: node.x,
@@ -752,7 +791,7 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
               color: 0xf59e0b,
               distSq,
               phase,
-              intensity: 1.9,
+              intensity: 2.4,
             });
           } else if (tile.kind === 'chasm') {
             candidateLights.push({
@@ -761,13 +800,39 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
               color: 0xea580c,
               distSq,
               phase,
-              intensity: 1.4,
+              intensity: 1.9,
             });
           }
         }
       }
 
-      // Billboard all visible terrain props toward camera
+      // Animate 3D crystals, flames, and wind-swaying tree crowns
+      if (!reduceMotion) {
+        const sec = now * 0.001;
+        for (let i = 0; i < animatedNodes.length; i++) {
+          const n = animatedNodes[i];
+          if (!n.group.visible) continue;
+          const phase = n.x * 0.7 + n.y * 1.1;
+          if (n.treeCrownGroup) {
+            n.treeCrownGroup.rotation.z = Math.sin(sec * 1.3 + phase) * 0.032;
+            n.treeCrownGroup.rotation.x = Math.cos(sec * 1.05 + phase) * 0.022;
+          }
+          if (n.animatedMesh && n.animatedMesh.visible) {
+            if (n.kind === 'shrine' || n.kind === 'waystone' || n.kind === 'cursed_altar') {
+              n.animatedMesh.rotation.y = sec * 1.5 + phase;
+              n.animatedMesh.position.y = 0.56 + Math.sin(sec * 2.4 + phase) * 0.06;
+            } else {
+              const fScale = 0.88 + Math.sin(sec * 11 + phase * 3) * 0.16;
+              n.animatedMesh.scale.set(
+                0.92 + Math.cos(sec * 9 + phase) * 0.08,
+                fScale,
+                0.92 + Math.sin(sec * 8 + phase) * 0.08
+              );
+            }
+          }
+        }
+      }
+
       for (let i = 0; i < terrainBillboards.length; i++) {
         const bb = terrainBillboards[i];
         if (bb.parent?.visible) {
@@ -775,10 +840,9 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
         }
       }
 
-      // Update dynamic point lights
-      playerLight.position.set(s.heroVisX, 1.15, s.heroVisZ);
+      playerLight.position.set(s.heroVisX, 1.3, s.heroVisZ);
       const pFlicker = reduceMotion ? 1 : 0.92 + Math.sin(now * 0.005) * 0.08;
-      playerLight.intensity = (s.zone.isTown ? 1.8 : 2.9) * pFlicker;
+      playerLight.intensity = (s.zone.isTown ? 2.6 : 4.1) * pFlicker;
 
       candidateLights.sort((a, b) => a.distSq - b.distSq);
       for (let i = 0; i < envLights.length; i++) {
@@ -792,7 +856,7 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
           ? 0.95
           : 0.85 + Math.sin(now * 0.0065 + src.phase) * 0.1 + Math.cos(now * 0.015 + src.phase) * 0.06;
         light.color.setHex(src.color);
-        light.position.set(src.x, 0.85, src.z);
+        light.position.set(src.x, 0.9, src.z);
         light.intensity = src.intensity * flicker;
       }
 
@@ -807,7 +871,7 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
       }
 
       let teleIdx = 0;
-      const telePulse = 0.22 + (reduceMotion ? 0.08 : Math.sin(now * 0.01) * 0.1);
+      const telePulse = 0.24 + (reduceMotion ? 0.08 : Math.sin(now * 0.01) * 0.1);
       teleFillMat.opacity = telePulse;
       const drawExclaim = shouldDrawTelegraphMarker(s.patternSignals, true);
       for (const key of telegraphedKeys) {
@@ -818,12 +882,12 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
         if (!s.zone.tiles[ty]?.[tx]?.visible) continue;
 
         const m = teleMeshes[teleIdx];
-        m.position.set(tx, 0.028, ty);
+        m.position.set(tx, 0.03, ty);
         m.visible = true;
 
         const ex = teleExclaims[teleIdx];
         if (drawExclaim) {
-          ex.position.set(tx, 0.16, ty);
+          ex.position.set(tx, 0.18, ty);
           ex.quaternion.copy(camera.quaternion);
           ex.visible = true;
         } else {
@@ -836,7 +900,6 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
         teleExclaims[i].visible = false;
       }
 
-      // Skill / Inscription Range Rings
       let rangeIdx = 0;
       const activeRange = s.armedSkill
         ? SKILLS[s.armedSkill].range
@@ -853,7 +916,7 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
           new THREE.MeshBasicMaterial({
             color: rangeColor,
             transparent: true,
-            opacity: 0.72,
+            opacity: 0.78,
             side: THREE.DoubleSide,
             depthWrite: false,
           })
@@ -870,7 +933,7 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
             if (d === 0 || d > activeRange) continue;
             const rm = rangeMeshes[rangeIdx++];
             rm.material = rMat;
-            rm.position.set(rx, 0.032, ry);
+            rm.position.set(rx, 0.034, ry);
             rm.visible = true;
           }
         }
@@ -879,9 +942,8 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
         rangeMeshes[i].visible = false;
       }
 
-      // Hover tile & Aimed target reticle
       if (s.hoverCoord) {
-        hoverMesh.position.set(s.hoverCoord.x, 0.038, s.hoverCoord.y);
+        hoverMesh.position.set(s.hoverCoord.x, 0.04, s.hoverCoord.y);
         hoverMesh.visible = true;
       } else {
         hoverMesh.visible = false;
@@ -889,33 +951,39 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
 
       if ((s.armedSkill || s.armedInscriptionRange) && s.aimedTarget) {
         aimMat.opacity = 0.65 + (reduceMotion ? 0.2 : Math.sin(now * 0.012) * 0.25);
-        aimMesh.position.set(s.aimedTarget.x, 0.044, s.aimedTarget.y);
+        aimMesh.position.set(s.aimedTarget.x, 0.048, s.aimedTarget.y);
         aimMesh.visible = true;
       } else {
         aimMesh.visible = false;
       }
 
-      // Path Preview Breadcrumbs
-      let pathIdx = 0;
+      // Connected 3D Path Ribbon
       if (!s.armedSkill && !s.armedInscriptionRange && s.hoverPath.length > 0) {
-        for (let i = 0; i < s.hoverPath.length && pathIdx < MAX_PATH; i++) {
-          const step = s.hoverPath[i];
-          const dot = pathDots[pathIdx++];
-          dot.position.set(step.x, 0.14, step.y);
-          const isEnd = i === s.hoverPath.length - 1;
-          const sc = isEnd ? 1.35 : 0.85;
-          dot.scale.set(sc, sc, sc);
-          dot.visible = true;
+        const count = Math.min(MAX_PATH, s.hoverPath.length);
+        const attr = pathLineGeo.getAttribute('position') as THREE.BufferAttribute;
+        attr.setXYZ(0, s.heroVisX, 0.08, s.heroVisZ);
+        for (let i = 0; i < count; i++) {
+          attr.setXYZ(i + 1, s.hoverPath[i].x, 0.08, s.hoverPath[i].y);
         }
-      }
-      for (let i = pathIdx; i < MAX_PATH; i++) {
-        pathDots[i].visible = false;
+        attr.needsUpdate = true;
+        pathLineGeo.setDrawRange(0, count + 1);
+        pathLine.visible = true;
+
+        const dest = s.hoverPath[count - 1];
+        pathDestRing.position.set(dest.x, 0.044, dest.y);
+        const pulse = reduceMotion ? 0.65 : 0.6 + Math.sin(now * 0.008) * 0.1;
+        pathDestRing.scale.set(pulse, pulse, pulse);
+        pathDestRing.visible = true;
+      } else {
+        pathLine.visible = false;
+        pathDestRing.visible = false;
       }
 
-      // === DYNAMIC ENTITIES (Sprites, Shadows, Rings) ===
+      // === DYNAMIC ENTITIES ===
       let sprIdx = 0;
       let shdIdx = 0;
       let rngIdx = 0;
+      let bmIdx = 0;
 
       const placeShadow = (wx: number, wz: number, scale: number) => {
         const sh = ensureMesh(shadowPool, shdIdx++, geos.shadowDisc, entitiesGroup);
@@ -923,16 +991,16 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
           new THREE.MeshBasicMaterial({
             map: shadowTex,
             transparent: true,
-            opacity: 0.72,
+            opacity: 0.78,
             depthWrite: false,
           })
         );
-        sh.position.set(wx, 0.022, wz);
+        sh.position.set(wx, 0.023, wz);
         sh.scale.set(scale, scale, scale);
         sh.visible = true;
       };
 
-      const placeRing = (wx: number, wz: number, colorHex: number, scale: number, opacity = 0.85) => {
+      const placeRing = (wx: number, wz: number, colorHex: number, scale: number, opacity = 0.88) => {
         const rg = ensureMesh(ringPool, rngIdx++, geos.floorRing, entitiesGroup);
         rg.material = mats.getBasic(`ring:${colorHex}:${opacity.toFixed(2)}`, () =>
           new THREE.MeshBasicMaterial({
@@ -943,7 +1011,7 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
             depthWrite: false,
           })
         );
-        rg.position.set(wx, 0.03, wz);
+        rg.position.set(wx, 0.032, wz);
         rg.scale.set(scale, scale, scale);
         rg.visible = true;
       };
@@ -960,21 +1028,23 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
         tint = 0xffffff
       ) => {
         const sp = ensureMesh(spriteMeshesPool, sprIdx++, geos.billboard, entitiesGroup);
-        const tex = textureFromCanvas(cacheKey, canvas, flipX);
-        sp.material = mats.getBasic(`sp:${cacheKey}:${flipX ? 1 : 0}:${opacity.toFixed(2)}:${tint}`, () =>
-          new THREE.MeshBasicMaterial({
-            map: tex,
-            color: tint,
-            transparent: true,
-            opacity,
-            alphaTest: 0.1,
-            side: THREE.DoubleSide,
-          })
+        const tex = getOutlinedSpriteTexture(cacheKey, canvas, flipX);
+        sp.material = mats.getBasic(
+          `sp2:${cacheKey}:${flipX ? 1 : 0}:${opacity.toFixed(2)}:${tint}`,
+          () =>
+            new THREE.MeshBasicMaterial({
+              map: tex,
+              color: tint,
+              transparent: true,
+              opacity,
+              alphaTest: 0.1,
+              side: THREE.DoubleSide,
+            })
         );
         sp.position.set(wx, wy, wz);
         sp.scale.set(size, size, 1);
         sp.quaternion.copy(camera.quaternion);
-        sp.renderOrder = 2;
+        sp.renderOrder = 3;
         sp.visible = true;
       };
 
@@ -987,12 +1057,13 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
         return null;
       };
 
-      // Screen-right projection for camera-aware horizontal sprite facing
       const camRightX = Math.sin(s.yawRad);
+      const camRightZ = -Math.cos(s.yawRad);
       const heroScreenDot = (s.player.lastDirX || 1) * camRightX;
-      const heroFlipX = heroScreenDot < -0.05 ? true : heroScreenDot > 0.05 ? false : s.player.lastDirX === -1;
+      const heroFlipX =
+        heroScreenDot < -0.05 ? true : heroScreenDot > 0.05 ? false : s.player.lastDirX === -1;
 
-      // 1. Ground Loot
+      // 1. Ground Loot + Rarity Light Beams
       for (const drop of s.zone.loot) {
         const tile = s.zone.tiles[drop.y]?.[drop.x];
         if (!tile?.visible) continue;
@@ -1005,19 +1076,36 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
             new THREE.MeshBasicMaterial({
               map: getGlowDiscTexture(gleamHex),
               transparent: true,
-              opacity: 0.68,
+              opacity: 0.72,
+              blending: THREE.AdditiveBlending,
               depthWrite: false,
             })
           );
-          sh.position.set(drop.x, 0.024, drop.y);
-          sh.scale.set(0.95, 0.95, 0.95);
+          sh.position.set(drop.x, 0.025, drop.y);
+          sh.scale.set(1.05, 1.05, 1.05);
           sh.visible = true;
+
+          const beam = ensureMesh(beamPool, bmIdx++, beamGeo, entitiesGroup);
+          beam.material = mats.getBasic(`beamMat:${gleamHex}`, () =>
+            new THREE.MeshBasicMaterial({
+              map: getLootBeamTexture(gleamHex),
+              transparent: true,
+              opacity: 0.7,
+              blending: THREE.AdditiveBlending,
+              depthWrite: false,
+              side: THREE.DoubleSide,
+            })
+          );
+          beam.position.set(drop.x, 0.02, drop.y);
+          beam.quaternion.copy(camera.quaternion);
+          beam.renderOrder = 2;
+          beam.visible = true;
         }
         const lootSprite = getLootSprite(drop.item);
         const lootKey = drop.item
           ? `loot:${drop.item.category}:${drop.item.consumableKind ?? ''}:${drop.item.inscriptionCategory ?? ''}:${drop.item.rarity}`
           : 'loot:gold';
-        placeSprite(drop.x, 0.06 + bob, drop.y, lootSprite, lootKey, 0.68);
+        placeSprite(drop.x, 0.08 + bob, drop.y, lootSprite, lootKey, 0.72);
       }
 
       // 2. Critters
@@ -1026,21 +1114,22 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
         if (!ctile?.visible && !(s.zone.id === 'overworld' && ctile?.explored)) continue;
         const cFrame = (spriteFrame + critter.x + critter.y) % 2;
         const cSprite = getCritterSprite(critter.kind, cFrame);
-        placeShadow(critter.x, critter.y, 0.55);
-        placeSprite(critter.x, 0.04, critter.y, cSprite, `critter:${critter.kind}:${cFrame}`, 0.64);
+        placeShadow(critter.x, critter.y, 0.56);
+        placeSprite(critter.x, 0.05, critter.y, cSprite, `critter:${critter.kind}:${cFrame}`, 0.66);
       }
 
       // 3. NPCs
       for (const npc of s.zone.npcs) {
         const ntile = s.zone.tiles[npc.y]?.[npc.x];
         if (!ntile?.explored) continue;
-        placeShadow(npc.x, npc.y, 0.85);
+        placeShadow(npc.x, npc.y, 0.92);
         const npcSprite = getNpcSprite(npc.id, npc.color);
         const dim = ntile.visible ? 0xffffff : 0x64748b;
-        placeSprite(npc.x, 0.03, npc.y, npcSprite, `npc:${npc.id}:${npc.color}`, 0.96, false, 1, dim);
+        const idleBob = reduceMotion ? 0 : Math.sin(now * 0.0035 + npc.x) * 0.025;
+        placeSprite(npc.x, 0.04 + idleBob, npc.y, npcSprite, `npc:${npc.id}:${npc.color}`, 1.04, false, 1, dim);
       }
 
-      // 4. Enemies & Bosses (tracked for 2D HUD bars/badges)
+      // 4. Enemies & Bosses
       const projectedEnemies: Array<{
         enemy: Enemy;
         wx: number;
@@ -1064,8 +1153,11 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
           vis.z += (enemy.y - vis.z) * eLerp;
         }
 
+        const stepDist = Math.hypot(enemy.x - vis.x, enemy.y - vis.z);
+        const hopLift = reduceMotion ? 0 : Math.sin(Math.min(1, stepDist) * Math.PI) * 0.2;
+
         const isMajor = enemy.isBoss || enemy.rank === 'randboss';
-        placeShadow(vis.x, vis.z, isMajor ? 1.18 : 0.92);
+        placeShadow(vis.x, vis.z, isMajor ? 1.24 : 0.95);
 
         if (enemy.isBoss || enemy.isElite || enemy.rank === 'rare' || enemy.rank === 'randboss') {
           const ringColor =
@@ -1074,12 +1166,12 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
               : enemy.rank === 'rare'
                 ? 0x38bdf8
                 : 0xc084fc;
-          placeRing(vis.x, vis.z, ringColor, isMajor ? 1.15 : 0.95);
+          placeRing(vis.x, vis.z, ringColor, isMajor ? 1.2 : 1.0);
         }
 
         const isShielded = enemy.statuses.some((st) => st.kind === 'shielded') || enemy.runeCharge;
         if (isShielded) {
-          placeRing(vis.x, vis.z, enemy.runeCharge ? 0x38bdf8 : 0x60a5fa, 1.05, 0.7);
+          placeRing(vis.x, vis.z, enemy.runeCharge ? 0x38bdf8 : 0x60a5fa, 1.08, 0.72);
         }
 
         const enemyAnim = (spriteFrame + (enemy.x + enemy.y)) % 2;
@@ -1089,13 +1181,13 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
           reduceMotion || stunned
             ? 0
             : enemy.archetype === 'cinder_wisp' || enemy.archetype === 'dread_wraith'
-              ? 0.08 + Math.sin(now * 0.006 + enemy.x) * 0.07
+              ? 0.09 + Math.sin(now * 0.006 + enemy.x) * 0.07
               : 0;
-        const size = isMajor ? 1.24 : 0.98;
+        const size = isMajor ? 1.32 : 1.04;
         const flashTint = getHitFlashTint(enemy.x, enemy.y);
         placeSprite(
           vis.x,
-          0.03 + enemyBob,
+          0.04 + enemyBob + hopLift,
           vis.z,
           eSprite,
           `enemy:${enemy.archetype}:${enemyAnim}`,
@@ -1105,7 +1197,7 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
           flashTint ?? 0xffffff
         );
 
-        projectedEnemies.push({ enemy, wx: vis.x, wz: vis.z, height: size + enemyBob + 0.08 });
+        projectedEnemies.push({ enemy, wx: vis.x, wz: vis.z, height: size + enemyBob + hopLift + 0.1 });
       }
       for (const id of s.enemyVisPos.keys()) {
         if (!activeEnemyIds.has(id)) s.enemyVisPos.delete(id);
@@ -1126,29 +1218,31 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
           const cLerp = reduceMotion ? 1 : Math.min(1, dt * 16);
           s.compVisX += (comp.x - s.compVisX) * cLerp;
           s.compVisZ += (comp.y - s.compVisZ) * cLerp;
+          const compDist = Math.hypot(comp.x - s.compVisX, comp.y - s.compVisZ);
+          const compHop = reduceMotion ? 0 : Math.sin(Math.min(1, compDist) * Math.PI) * 0.16;
 
-          placeShadow(s.compVisX, s.compVisZ, 0.78);
+          placeShadow(s.compVisX, s.compVisZ, 0.82);
           const compSprite = getCompanionSprite(comp.kind, spriteFrame);
           const compBob = reduceMotion
             ? 0
             : comp.kind === 'starlight_owl'
-              ? 0.09 + Math.sin(now * 0.007) * 0.06
+              ? 0.1 + Math.sin(now * 0.007) * 0.06
               : Math.sin(now * 0.006) > 0.35
                 ? 0.04
                 : 0;
           placeSprite(
             s.compVisX,
-            0.04 + compBob,
+            0.05 + compBob + compHop,
             s.compVisZ,
             compSprite,
             `comp:${comp.kind}:${spriteFrame}`,
-            0.84
+            0.9
           );
-          projectedComp = { comp, wx: s.compVisX, wz: s.compVisZ, height: 0.92 + compBob };
+          projectedComp = { comp, wx: s.compVisX, wz: s.compVisZ, height: 0.98 + compBob + compHop };
         }
       }
 
-      // 6. Hero (Garth Elfstrom)
+      // 6. Hero (Garth Elfstrom) with Hop-Arc Step + Off-hand Weapon Positioning
       {
         const hasWard = s.player.statuses.some(
           (st) => st.kind === 'shielded' || st.kind === 'spine_guard'
@@ -1159,20 +1253,24 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
             map: getGlowDiscTexture('#f59e0b'),
             transparent: true,
             opacity: 0.45,
+            blending: THREE.AdditiveBlending,
             depthWrite: false,
           })
         );
-        aura.position.set(s.heroVisX, 0.02, s.heroVisZ);
-        aura.scale.set(1.45, 1.45, 1.45);
+        aura.position.set(s.heroVisX, 0.022, s.heroVisZ);
+        aura.scale.set(1.6, 1.6, 1.6);
         aura.visible = true;
 
-        placeShadow(s.heroVisX, s.heroVisZ, 0.96);
+        placeShadow(s.heroVisX, s.heroVisZ, 1.0);
         if (hasWard) {
-          placeRing(s.heroVisX, s.heroVisZ, 0x38bdf8, 1.05, 0.85);
+          placeRing(s.heroVisX, s.heroVisZ, 0x38bdf8, 1.1, 0.88);
         }
 
+        const heroDist = Math.hypot(s.player.x - s.heroVisX, s.player.y - s.heroVisZ);
+        const heroHop = reduceMotion ? 0 : Math.sin(Math.min(1, heroDist) * Math.PI) * 0.22;
+
         const { body, weapon } = getPlayerSprite(s.player, spriteFrame);
-        const bob = reduceMotion ? 0 : Math.sin(now * 0.005) > 0.3 ? 0.04 : 0;
+        const bob = reduceMotion ? 0 : Math.sin(now * 0.005) > 0.3 ? 0.035 : 0;
         const heroTint = getHitFlashTint(s.player.x, s.player.y) ?? 0xffffff;
         const wItem = s.player.equipped.weapon;
         const armorItem = s.player.equipped.armor;
@@ -1180,17 +1278,29 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
         const heroKey = `hero:${s.player.starterClass}:${spriteFrame}:${armorItem?.rarity ?? 'base'}:${helmItem ? 'h' : 'n'}`;
         const wpnKey = `wpn:${s.player.starterClass}:${wItem?.rarity ?? 'base'}:${wItem?.name ?? 'sword'}`;
 
-        placeSprite(s.heroVisX, 0.03 + bob, s.heroVisZ, body, heroKey, 1.02, heroFlipX, 1, heroTint);
-        // Slightly offset weapon billboard forward toward camera so it renders cleanly over body
-        const fwdOffsetX = Math.cos(s.yawRad) * 0.03;
-        const fwdOffsetZ = Math.sin(s.yawRad) * 0.03;
+        placeSprite(
+          s.heroVisX,
+          0.04 + bob + heroHop,
+          s.heroVisZ,
+          body,
+          heroKey,
+          1.1,
+          heroFlipX,
+          1,
+          heroTint
+        );
+
+        // Position weapon slightly out to hero's hand side so it frames his silhouette cleanly
+        const sideSign = heroFlipX ? -1 : 1;
+        const fwdOffsetX = Math.cos(s.yawRad) * 0.04 + camRightX * 0.14 * sideSign;
+        const fwdOffsetZ = Math.sin(s.yawRad) * 0.04 + camRightZ * 0.14 * sideSign;
         placeSprite(
           s.heroVisX + fwdOffsetX,
-          0.03 + bob,
+          0.03 + bob + heroHop,
           s.heroVisZ + fwdOffsetZ,
           weapon,
           wpnKey,
-          1.02,
+          1.06,
           heroFlipX,
           1,
           heroTint
@@ -1200,6 +1310,7 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
       for (let i = sprIdx; i < spriteMeshesPool.length; i++) spriteMeshesPool[i].visible = false;
       for (let i = shdIdx; i < shadowPool.length; i++) shadowPool[i].visible = false;
       for (let i = rngIdx; i < ringPool.length; i++) ringPool[i].visible = false;
+      for (let i = bmIdx; i < beamPool.length; i++) beamPool[i].visible = false;
 
       // === 3D PROJECTILES, PARTICLE BURSTS & RISING EMBERS ===
       let pIdx = 0;
@@ -1209,11 +1320,11 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
         const t = age / proj.duration;
         const cx = proj.fromX + (proj.toX - proj.fromX) * t;
         const cz = proj.fromY + (proj.toY - proj.fromY) * t;
-        const arcY = 0.48 + Math.sin(t * Math.PI) * 0.25;
+        const arcY = 0.5 + Math.sin(t * Math.PI) * 0.28;
 
         const grp = ensureProj(pIdx++);
         grp.position.set(cx, arcY, cz);
-        grp.lookAt(proj.toX, 0.48, proj.toY);
+        grp.lookAt(proj.toX, 0.5, proj.toY);
         const tailMesh = grp.children[1] as THREE.Mesh;
         (tailMesh.material as THREE.MeshBasicMaterial).color.set(proj.color);
         grp.visible = true;
@@ -1231,7 +1342,7 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
         );
         spk.position.set(
           p.x + p.vx * t * 1.4,
-          0.35 + Math.sin(t * Math.PI) * 0.45,
+          0.38 + Math.sin(t * Math.PI) * 0.48,
           p.y + p.vy * t * 1.4
         );
         const sc = Math.max(0.2, 1 - t);
@@ -1242,17 +1353,26 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
       if (!reduceMotion && emberSources.length > 0) {
         for (const src of emberSources) {
           for (let k = 0; k < 2; k++) {
-            const t = (now * 0.0008 + src.x * 0.37 + src.z * 0.53 + k * 0.5) % 1;
+            const t = (now * (src.isWater ? 0.0012 : 0.0008) + src.x * 0.37 + src.z * 0.53 + k * 0.5) % 1;
             const spk = ensureMesh(sparkPool, spkIdx++, geos.spark, fxGroup);
             spk.material = mats.getBasic(`ember:${src.color}`, () =>
-              new THREE.MeshBasicMaterial({ color: src.color, transparent: true, opacity: 0.75 })
+              new THREE.MeshBasicMaterial({ color: src.color, transparent: true, opacity: 0.82 })
             );
-            spk.position.set(
-              src.x + Math.sin(t * Math.PI * 2 + src.x + k) * 0.16,
-              0.35 + t * 0.85,
-              src.z + Math.cos(t * Math.PI * 2 + src.z + k) * 0.12
-            );
-            const sc = Math.sin(t * Math.PI) * 0.75;
+            if (src.isWater) {
+              const ang = src.x + k * 3.1 + now * 0.001;
+              spk.position.set(
+                src.x + Math.cos(ang) * t * 0.28,
+                0.44 + Math.sin(t * Math.PI) * 0.25,
+                src.z + Math.sin(ang) * t * 0.28
+              );
+            } else {
+              spk.position.set(
+                src.x + Math.sin(t * Math.PI * 2 + src.x + k) * 0.16,
+                0.42 + t * 0.9,
+                src.z + Math.cos(t * Math.PI * 2 + src.z + k) * 0.12
+              );
+            }
+            const sc = Math.sin(t * Math.PI) * 0.78;
             spk.scale.set(sc, sc, sc);
             spk.visible = true;
           }
@@ -1260,10 +1380,9 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
       }
       for (let i = spkIdx; i < sparkPool.length; i++) sparkPool[i].visible = false;
 
-      // Render 3D scene
       renderer.render(scene, camera);
 
-      // === 2D PROJECTED HUD OVERLAY (Crisp HP bars, Badges, Damage Numbers, Minimap) ===
+      // === 2D PROJECTED HUD OVERLAY ===
       const hctx = hudCanvas.getContext('2d');
       if (hctx) {
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -1271,7 +1390,6 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
         hctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         hctx.clearRect(0, 0, viewW, viewH);
 
-        // Enemy HP bars, rank badges, and ! intent markers
         for (const item of projectedEnemies) {
           const { enemy, wx, wz, height } = item;
           const top = projectToScreen(wx, height, wz);
@@ -1281,7 +1399,7 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
             const ratio = Math.max(0, enemy.hp / enemy.maxHp);
             const bx = Math.round(top.sx - barW / 2);
             const by = Math.round(top.sy - 6);
-            hctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+            hctx.fillStyle = 'rgba(0, 0, 0, 0.88)';
             hctx.fillRect(bx - 1, by - 1, barW + 2, 5);
             hctx.fillStyle = '#EF4444';
             hctx.fillRect(bx, by, barW * ratio, 3);
@@ -1313,7 +1431,6 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
           }
         }
 
-        // Companion HP bar
         if (projectedComp && projectedComp.comp.hp < projectedComp.comp.maxHp) {
           const top = projectToScreen(projectedComp.wx, projectedComp.height, projectedComp.wz);
           const barW = Math.max(22, Math.min(36, s.tileSize * 0.8));
@@ -1326,24 +1443,22 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
           hctx.fillRect(bx, by, barW * ratio, 2.5);
         }
 
-        // Floating combat numbers projected from 3D world coords
         hctx.textAlign = 'center';
         hctx.textBaseline = 'middle';
         for (const fx of s.floatingEffects) {
           const age = now - fx.createdAt;
           if (age > fx.duration) continue;
           const t = age / fx.duration;
-          const pt = projectToScreen(fx.x, 1.05 + t * 0.8, fx.y);
+          const pt = projectToScreen(fx.x, 1.1 + t * 0.85, fx.y);
           hctx.globalAlpha = Math.min(1, (1 - t) * 1.45);
-          hctx.font = '700 12px "JetBrains Mono", monospace';
+          hctx.font = '700 13px "JetBrains Mono", monospace';
           hctx.fillStyle = '#090B10';
-          hctx.fillText(fx.text, pt.sx + 1, pt.sy + 1);
+          hctx.fillText(fx.text, pt.sx + 1.5, pt.sy + 1.5);
           hctx.fillStyle = fx.color;
           hctx.fillText(fx.text, pt.sx, pt.sy);
           hctx.globalAlpha = 1;
         }
 
-        // Ambient biome motes
         if (!reduceMotion) {
           const sec = now * 0.001;
           hctx.fillStyle = atmo.moteCss;
@@ -1357,21 +1472,19 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
           hctx.globalAlpha = 1;
         }
 
-        // Subtle atmospheric edge vignette
         const vig = hctx.createRadialGradient(
           viewW / 2,
           viewH / 2,
-          Math.min(viewW, viewH) * 0.34,
+          Math.min(viewW, viewH) * 0.36,
           viewW / 2,
           viewH / 2,
-          Math.max(viewW, viewH) * 0.74
+          Math.max(viewW, viewH) * 0.78
         );
         vig.addColorStop(0, 'rgba(0, 0, 0, 0)');
-        vig.addColorStop(1, 'rgba(5, 7, 12, 0.48)');
+        vig.addColorStop(1, 'rgba(5, 7, 12, 0.44)');
         hctx.fillStyle = vig;
         hctx.fillRect(0, 0, viewW, viewH);
 
-        // Corner Minimap (Desktop bottom-right or Mobile toggle top-right)
         const showDesktopMap = viewW >= 768 && viewH >= 320;
         const showCompactMobileMap = viewW < 768 && s.showMobileMap;
         if (showDesktopMap || showCompactMobileMap) {
@@ -1420,7 +1533,6 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
           hctx.fillStyle = '#FDE047';
           hctx.fillRect(mmX + s.player.x * cell, mmY + s.player.y * cell, cell, cell);
 
-          // Tiny compass badge showing camera view direction relative to map North
           const angleN = -(s.yawRad + Math.PI / 2);
           const compCx = mmX + mmW - 6;
           const compCy = mmY - 15;
@@ -1460,10 +1572,12 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
       entitiesGroup.clear();
       fxGroup.clear();
       disposeIsoGeometries(geos);
+      beamGeo.dispose();
       rangeRingGeo.dispose();
       squareFrameGeo.dispose();
-      pathDotMat.dispose();
-      pathStartMat.dispose();
+      pathLineGeo.dispose();
+      pathLineMat.dispose();
+      pathDestMat.dispose();
       teleFillMat.dispose();
       teleExclaimMat.dispose();
       hoverMat.dispose();
@@ -1473,7 +1587,6 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
     };
   }, []);
 
-  // Exact 3D raycast onto visible non-cutaway obstacles first, then ground plane y = 0
   const coordFromClient = (clientX: number, clientY: number): { x: number; y: number } | null => {
     const glCanvas = glCanvasRef.current;
     const s = stateRef.current;
@@ -1860,7 +1973,6 @@ export const IsometricCanvas: React.FC<IsometricCanvasProps> = ({
         </div>
       )}
 
-      {/* Pinned Boss / Mini-Boss Threat Bar */}
       {(() => {
         if (armedSkill || armedInscriptionRange || inspectMode) return null;
         const visibleBosses = zone.enemies
