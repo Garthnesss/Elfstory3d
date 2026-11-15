@@ -174,15 +174,15 @@ export function createOakhavenMap(): ZoneMap {
     '#....#...#..░░..#...#......#',
     '#♣...#...+..░░..+...#....*.#',
     '#♣♣..#####..░░..#####..♣♣..#',
-    '#...........░░.............#',
-    '#.....*.....>>......♣..♣...#',
+    '#...........░░....♣≈≈≈≈≈≈..#',
+    '#.....*.....>>.....≈♣≈≈♣...#',
     '############################',
   ];
 
   const town = buildTownFromAscii(
     'oakhaven',
     'Oakhaven Outpost',
-    'Frontier Timber Settlement',
+    'Sunny Frontier Village',
     layout,
     [
       { id: 'torin', x: 7, y: 2, glyph: '@', color: '#F59E0B', name: 'Torin Ironhand', title: 'Blacksmith & Forgemaster' },
@@ -200,6 +200,12 @@ export function createOakhavenMap(): ZoneMap {
   town.tiles[1][1].interactId = 'poi_old_oak';
   town.tiles[1][1].label = 'The Old Outpost Oak';
   town.critters = [makeCritter('town_cat', 15, 6)];
+  // Village pond on the south-east green (Phase 7 retheme): label its water.
+  for (const [px, py] of [
+    [19, 14], [20, 14], [21, 14], [22, 14], [23, 14], [24, 14], [19, 15], [21, 15], [22, 15],
+  ] as const) {
+    town.tiles[py][px].label = 'Oakhaven Pond';
+  }
   return town;
 }
 

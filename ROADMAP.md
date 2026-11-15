@@ -68,6 +68,13 @@ Small fixes from the final audit of the shipped P5+6 build — no new features, 
 - ✅ **Quest rewards can't double-pay** — the `complete_quest` handler refuses to pay rewards for an already-completed quest (defence-in-depth behind the dialogue gating).
 - ✅ **Stacked-consumable selling** — selling a stack sells one unit at the shown price (was: the whole stack was removed for one unit's price).
 
+## Phase 7 — "Themed villages & dungeons" (Garth's ask, Nov 15, 2026)
+Every place should be recognizable from a single screenshot — like a real game, each village and dungeon gets its own identity instead of one dark-stone look everywhere.
+- ✅ **Step 1 — Oakhaven retheme (Nov 15, 2026)**: the starting zone no longer reads as a night castle. Its exclusive `oakhaven` biome got a bright daytime palette (grass-green ground, sunlit dirt roads, warm timber-and-terracotta buildings) and a daytime atmosphere (sky-blue background/fog, stronger sun), plus a village pond on the south-east green and the subtitle "Sunny Frontier Village". Highspire stays the actual citadel — the contrast is the point.
+- **Village identities (one signature each)**: Oakhaven = sunny farming village (pond, market stalls, oak); Thornwick Fen = misty marsh village (boardwalks, teal fog, spore pools); Highspire = the stone citadel (banners, pillars, archive); Cinderwatch = ash-frontier town (ember light, braziers, cinder crows). Each via its biome palette + atmosphere + 1–2 signature landmarks/props, without touching layouts or NPC placement.
+- **Dungeon identities**: Reliquary (moss-sunken stone), Ossuary (bone-pale), Ember (heat shimmer, ember crust), Crucible (forge-lit), Abyss (void purple) — strengthen the existing biome split with signature set-pieces, props and ambient lines per family, including the side dungeons (barrow / mire / frost).
+- **Gate**: each town and dungeon family instantly identifiable from a Top-view screenshot; no layout, balance or save changes (palettes/atmosphere/props only, new fields optional-with-defaults); `npm test` + `tsc` + build green; Garth's screenshot/play check per place.
+
 ## Explicitly later (not this roadmap)
 - Platform achievements / lifetime stats beyond the 10 in-run feats — un-park with a distribution decision.
 - Code-splitting the 1.22 MB single JS chunk — un-park if load time becomes a measured problem.
