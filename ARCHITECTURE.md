@@ -44,7 +44,7 @@ TitleScreen ──► App.tsx (turn loop, state, saves) ──► PerspectiveCan
 - **`src/game/coachMarks.ts`** — one-time-per-device contextual hints, claimed at the real event points (first telegraph, first inscription, first Prodigy point).
 - **`src/game/gamepad.ts`** — pure gamepad polling/mapping (standard layout, deadzone, hold-repeat), unit-tested; App feeds it into the same dispatch as the keyboard.
 - **`src/game/lifetime.ts`** — per-device lifetime stats record (`elfstory-lifetime`, outside save bundles): expeditions, victories, deaths, kills, deepest floor, highest cycle.
-- **`src/components/`** — `PerspectiveCanvas` (Three.js full-3D renderer: chase / first-person / overhead tactical views + touch), `ActionDock`, `TopHud`, and modals/screens (Inventory, Merchant, Dialogue, QuestJournal, CharacterSkills, TownUpgrades, Travel, Legend, HallOfFame, EndPause, SpecialEncounter, TitleScreen, SettingsModal, EndingScreen, CreditsScreen, QuestTracker, TutorialOverlay).
+- **`src/components/`** — `PerspectiveCanvas` (Three.js full-3D renderer: overhead tactical / chase views + touch), `ActionDock`, `TopHud`, and modals/screens (Inventory, Merchant, Dialogue, QuestJournal, CharacterSkills, TownUpgrades, Travel, Legend, HallOfFame, EndPause, SpecialEncounter, TitleScreen, SettingsModal, EndingScreen, CreditsScreen, QuestTracker, TutorialOverlay).
 
 ## Data flow / protocols
 - **Turn loop:** player action in App → player resolution (combat.ts math) → companion turn → enemy turns (intent selection in combat.ts, execution in App) → DoT/status ticks → autosave checks.

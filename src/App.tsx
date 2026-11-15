@@ -468,11 +468,11 @@ export default function App() {
   const [viewMode, setViewMode] = useState<CameraViewMode>(() => {
     try {
       const v = localStorage.getItem('elfstory3d-view-mode');
-      if (v === 'chase' || v === 'first' || v === 'tactical') return v;
+      if (v === 'chase' || v === 'tactical') return v;
     } catch {
       // ignore
     }
-    return 'chase';
+    return 'tactical';
   });
   const handleViewModeChange = useCallback((next: CameraViewMode) => {
     setViewMode(next);
@@ -484,7 +484,7 @@ export default function App() {
   }, []);
   const handleCycleViewMode = useCallback(() => {
     setViewMode((cur) => {
-      const order: CameraViewMode[] = ['chase', 'first', 'tactical'];
+      const order: CameraViewMode[] = ['tactical', 'chase'];
       const next = order[(order.indexOf(cur) + 1) % order.length];
       try {
         localStorage.setItem('elfstory3d-view-mode', next);

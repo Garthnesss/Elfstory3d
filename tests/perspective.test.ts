@@ -31,14 +31,10 @@ test('perspectiveCamera: cardinal forward and right vectors align with rotateSte
   }
 });
 
-test('perspectiveCamera: getPerspectivePose places eye behind player in chase/tactical and at eye level in first', () => {
+test('perspectiveCamera: getPerspectivePose places eye behind player in chase and high overhead in tactical', () => {
   const chase = getPerspectivePose('chase', 10, 10, 0, 36);
   assert.ok(chase.eye[2] > 10, 'chase camera should sit South (+Z) when facing North');
   assert.ok(chase.target[2] < 10, 'chase target should look North (-Z) ahead of player');
-
-  const first = getPerspectivePose('first', 10, 10, getCardinalYawRadians(1), 36);
-  assert.ok(Math.abs(first.eye[1] - 1.08) < 1e-6);
-  assert.ok(first.target[0] > 10, 'first-person camera facing East should look +X');
 
   const tactical = getPerspectivePose('tactical', 10, 10, 0, 36);
   assert.ok(tactical.eye[1] > chase.eye[1], 'tactical camera sits higher than chase');
@@ -48,7 +44,6 @@ test('perspectiveCamera: isCardinalOccluder detects walls strictly behind player
   // Facing North (0): camera is South (+Z) at (12, 13) looking toward (12, 9)
   assert.equal(isCardinalOccluder(12, 11, 12, 9, 0, 'chase'), true);
   assert.equal(isCardinalOccluder(12, 7, 12, 9, 0, 'chase'), false);
-  assert.equal(isCardinalOccluder(12, 11, 12, 9, 0, 'first'), false);
 });
 
 test('perspectiveCamera: yawRadToCompassDeg points straight North at 0 and rotates CCW when looking East', () => {

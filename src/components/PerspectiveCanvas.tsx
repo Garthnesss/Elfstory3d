@@ -158,9 +158,8 @@ function getTileContextHint(tile: Tile): string | null {
 
 const ZOOM_STEPS = [28, 36, 44] as const;
 const VIEW_MODES: Array<{ id: CameraViewMode; label: string; title: string }> = [
+  { id: 'tactical', label: 'Top', title: 'Overhead Tactical 3D (V)' },
   { id: 'chase', label: '3rd', title: '3rd Person Chase 3D (V)' },
-  { id: 'first', label: '1st', title: '1st Person Dungeon Crawl (V)' },
-  { id: 'tactical', label: 'Top', title: 'Overhead Cardinal 3D (V)' },
 ];
 
 interface AmbientMote {
@@ -285,11 +284,11 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
   const [internalViewMode, setInternalViewMode] = useState<CameraViewMode>(() => {
     try {
       const v = localStorage.getItem('elfstory3d-view-mode');
-      if (v === 'chase' || v === 'first' || v === 'tactical') return v;
+      if (v === 'chase' || v === 'tactical') return v;
     } catch {
       // ignore
     }
-    return 'chase';
+    return 'tactical';
   });
 
   const viewMode = controlledViewMode ?? internalViewMode;
@@ -1338,9 +1337,8 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
 
       // 6. Articulated 3D Hero (Garth "Big Dick" Elfstrom)
       {
-        const hideHero = s.viewMode === 'first';
-        heroModel.root.visible = !hideHero;
-        if (!hideHero) {
+        heroModel.root.visible = true;
+        {
           const hasWard = s.player.statuses.some(
             (st) => st.kind === 'shielded' || st.kind === 'spine_guard'
           );
@@ -1907,16 +1905,11 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
   const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
     if (Math.abs(e.deltaY) < 12) return;
     if (e.deltaY < 0) {
-      if (viewMode === 'chase' && zoomIndex >= ZOOM_STEPS.length - 1) {
-        setViewMode('first');
-      } else if (zoomIndex < ZOOM_STEPS.length - 1) {
+      if (zoomIndex < ZOOM_STEPS.length - 1) {
         setTileSize(ZOOM_STEPS[zoomIndex + 1]);
       }
     } else if (e.deltaY > 0) {
-      if (viewMode === 'first') {
-        setViewMode('chase');
-        setTileSize(ZOOM_STEPS[ZOOM_STEPS.length - 1]);
-      } else if (zoomIndex > 0) {
+      if (zoomIndex > 0) {
         setTileSize(ZOOM_STEPS[zoomIndex - 1]);
       }
     }
@@ -2013,8 +2006,7 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
           <RotateCw className="w-3.5 h-3.5" />
         </button>
 
-        {viewMode !== 'first' && (
-          <>
+        <>
             <div className="w-px h-4 bg-white/12 mx-1" />
             <button
               type="button"
@@ -2042,8 +2034,7 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
             >
               <ZoomIn className="w-3.5 h-3.5" />
             </button>
-          </>
-        )}
+        </>
       </div>
 
       {/* Mobile Top-Right Turn / View / Look / Map Controls */}
@@ -2052,14 +2043,14 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
           type="button"
           onClick={(e) => {
             e.currentTarget.blur();
-            const order: CameraViewMode[] = ['chase', 'first', 'tactical'];
+            const order: CameraViewMode[] = ['tactical', 'chase'];
             const next = order[(order.indexOf(viewMode) + 1) % order.length];
             setViewMode(next);
           }}
           aria-label="Cycle 3D camera view"
           className="h-11 px-2.5 rounded border border-white/15 bg-[#0D121A]/88 text-amber-200 text-[11px] font-mono-glyph font-semibold flex items-center justify-center shadow-md cursor-pointer"
         >
-          {VIEW_MODES.find((m) => m.id === viewMode)?.label ?? '3rd'}
+          {VIEW_MODES.find((m) => m.id === viewMode)?.label ?? 'Top'}
         </button>
 
         <button

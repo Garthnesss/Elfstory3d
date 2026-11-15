@@ -4,7 +4,7 @@ import { normalizeYawIndex, rotateStepByYaw } from './cameraYaw';
 export type { CameraYawIndex };
 export { normalizeYawIndex, rotateStepByYaw };
 
-export type CameraViewMode = 'chase' | 'first' | 'tactical';
+export type CameraViewMode = 'chase' | 'tactical';
 
 export interface CameraPose {
   fov: number;
@@ -45,7 +45,7 @@ export function getCameraRightVector(yawRad: number): { x: number; z: number } {
 
 /**
  * Compute perspective camera FOV, eye position, and look target in world coordinates
- * for any of the three 3D camera views.
+ * for either of the two 3D camera views.
  */
 export function getPerspectivePose(
   mode: CameraViewMode,
@@ -56,16 +56,6 @@ export function getPerspectivePose(
 ): CameraPose {
   const fwd = getCameraForwardVector(yawRad);
   const zoomScale = 36 / Math.max(24, Math.min(52, tileSize));
-
-  if (mode === 'first') {
-    const backDist = 0.08;
-    const lookAhead = 3.5;
-    return {
-      fov: 68,
-      eye: [focusX - fwd.x * backDist, 1.08, focusZ - fwd.z * backDist],
-      target: [focusX + fwd.x * lookAhead, 0.96, focusZ + fwd.z * lookAhead],
-    };
-  }
 
   if (mode === 'tactical') {
     const backDist = 6.0 * zoomScale;
@@ -102,7 +92,6 @@ export function isCardinalOccluder(
   yawRad: number,
   mode: CameraViewMode
 ): boolean {
-  if (mode === 'first') return false;
   const fwd = getCameraForwardVector(yawRad);
   const vx = tileX - focusX;
   const vz = tileY - focusY;
