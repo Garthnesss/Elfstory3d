@@ -1,9 +1,10 @@
 # ElfStory — Status
 
-**Last updated:** 2026-11-14
+**Last updated:** 2026-11-15
 **Phase:** Phase 7 — fix pack (complete Nov 14, 2026; Phases 5 + 6 merged into this tree the same day). Merged tree verification: `npm test` **97/97**, `tsc --noEmit` clean, `vite build` clean, difficulty sim re-verified. Awaiting Garth's hand play-checks.
 
 ## Where things stand
+- **Full 3D is now the game (Nov 15, 2026)** — the `3d-perspective` branch was promoted to `main` at Garth's call and the 2.5D isometric renderer was removed entirely: `src/components/IsometricCanvas.tsx` (2,121 lines) deleted, isometric-only camera math (`ISO_ELEVATION_RAD`, ortho frustum, iso occlusion/drag helpers) deleted, and the shared scene code renamed to match what it actually does now — `isoSceneBuilder.ts` → `sceneBuilder.ts` (`SceneGeometries` / `SceneMaterialPool`), `isoMaterials.ts` → `sceneMaterials.ts`, `isoCamera.ts` → `cameraYaw.ts` (quarter-turn yaw only). The only renderer is `PerspectiveCanvas` with Chase (3rd-person) / First-Person / Overhead Tactical views (`V` cycles). Verification on the promoted tree: `npm test` **109/109** (112 minus the 3 tests that pinned isometric-only math), `tsc --noEmit` clean, `vite build` clean. The `3d-perspective` branch was deleted after the merge. Still awaiting Garth's hand play-check of the 3D views.
 - **Phase 7 — fix pack (Nov 14, 2026)** — implemented; tests + live smoke by Muse:
   - Completed runs can return to the Ending Screen from the pause menu (gated on `worldFlags.malakorDefeated`), so the NG+ ascend survives save/reload instead of existing only in the live victory moment.
   - Service worker runtime-caches same-origin assets and the cache name is bumped to `elfstory-shell-v2` — an installed PWA now boots offline, not just its HTML shell.

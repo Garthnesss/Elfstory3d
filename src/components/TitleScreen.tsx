@@ -173,7 +173,7 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3 text-xs font-mono-glyph text-amber-400/80 tracking-widest">
             <span>◈</span>
-            <span>THE SUNKEN CITADEL · 2.5D ISOMETRIC</span>
+            <span>THE SUNKEN CITADEL · FULL 3D</span>
           </div>
 
           <div className="flex items-center gap-3 text-xs">

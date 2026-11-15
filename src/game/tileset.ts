@@ -467,7 +467,7 @@ export function getWallTileCanvas(
     ctx.fillRect(leftPad + 12, topPad + 8, 3, 1);
   }
 
-  // 2.5D South vertical wall face
+  // South vertical wall face
   if (southOpen) {
     const fy = topH;
     ctx.fillStyle = p.wallFace;

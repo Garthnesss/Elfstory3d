@@ -22,7 +22,7 @@ import { TopHud } from './components/TopHud';
 import { TownUpgradesModal } from './components/TownUpgradesModal';
 import { TravelModal } from './components/TravelModal';
 import { resolveMusicTheme, soundEngine } from './game/audio';
-import { CameraYawIndex, normalizeYawIndex, rotateStepByYaw } from './game/isoCamera';
+import { CameraYawIndex, normalizeYawIndex, rotateStepByYaw } from './game/cameraYaw';
 import type { CameraViewMode } from './game/perspectiveCamera';
 import {
   DIFFICULTY_INFO,

@@ -1,5 +1,5 @@
-import type { CameraYawIndex } from './isoCamera';
-import { normalizeYawIndex, rotateStepByYaw } from './isoCamera';
+import type { CameraYawIndex } from './cameraYaw';
+import { normalizeYawIndex, rotateStepByYaw } from './cameraYaw';
 
 export type { CameraYawIndex };
 export { normalizeYawIndex, rotateStepByYaw };

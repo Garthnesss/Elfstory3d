@@ -16,23 +16,23 @@ import { createHeroModel3D, HeroModel3D } from '../game/heroModel3d';
 import {
   CameraYawIndex,
   normalizeYawIndex,
-} from '../game/isoCamera';
+} from '../game/cameraYaw';
 import {
   getBiomeAtmosphere,
   getContactShadowTexture,
   getGlowDiscTexture,
   getLootBeamTexture,
   getTelegraphExclaimTexture,
-} from '../game/isoMaterials';
+} from '../game/sceneMaterials';
 import {
   buildZoneTerrain,
-  createIsoGeometries,
-  disposeIsoGeometries,
-  IsoGeometries,
-  IsoMaterialPool,
+  createSceneGeometries,
+  disposeSceneGeometries,
+  SceneGeometries,
+  SceneMaterialPool,
   syncTileNode,
   TileNode,
-} from '../game/isoSceneBuilder';
+} from '../game/sceneBuilder';
 import {
   CameraViewMode,
   getCardinalYawRadians,
@@ -510,8 +510,8 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
     let skyGeo: THREE.SphereGeometry | null = null;
     let skyMat: THREE.MeshBasicMaterial | null = null;
 
-    const geos: IsoGeometries = createIsoGeometries();
-    const mats = new IsoMaterialPool();
+    const geos: SceneGeometries = createSceneGeometries();
+    const mats = new SceneMaterialPool();
     const shadowTex = getContactShadowTexture();
     const exclaimTex = getTelegraphExclaimTexture();
     const heroModel: HeroModel3D = createHeroModel3D();
@@ -1676,7 +1676,7 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
       fxGroup.clear();
       heroModel.dispose();
       entityPool.dispose();
-      disposeIsoGeometries(geos);
+      disposeSceneGeometries(geos);
       beamGeo.dispose();
       rangeRingGeo.dispose();
       squareFrameGeo.dispose();
