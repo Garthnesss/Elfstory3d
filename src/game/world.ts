@@ -160,23 +160,23 @@ function buildTownFromAscii(
 
 export function createOakhavenMap(): ZoneMap {
   const layout = [
-    '############################',
-    '#♣♣..#####......#####..♣♣♣##',
-    '#♣...#...#..**..#...#....♣.#',
-    '#....#...+..░░..+...#......#',
-    '#....#####..░░..#####..*...#',
-    '#..♣........░░.............#',
-    '#.....Π.Π...░░...*...┼.....#',
-    'Ω░░░░░░░░░░░◎░░░░░░░░░░░*..#',
-    '#.....Π.....░░......‡......#',
-    '#..*........░░.............#',
-    '#....#####..░░..#####..♣...#',
-    '#....#...#..░░..#...#......#',
-    '#♣...#...+..░░..+...#....*.#',
-    '#♣♣..#####..░░..#####..♣♣..#',
-    '#...........░░....♣≈≈≈≈≈≈..#',
-    '#.....*.....>>.....≈♣≈≈♣...#',
-    '############################',
+    '♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣',
+    '♣♣...#####..♣....♣..#####..♣',
+    '♣.♣..#...#........♣.#...#..♣',
+    '♣....##+##..........##+##..♣',
+    '♣......░.Π.Π..........░.♣..♣',
+    '♣......░.......Π....✿.░✿.✿.♣',
+    '♣..♣...░....*.*.....┼✿░*║.║♣',
+    'Ω░░░░░░░░░░░░◎░░░░░░░░░░..░♣',
+    '♣............░.........░>>░♣',
+    '♣.♣.♣........░.........░░░*♣',
+    '♣.....♣......░░░░░░░......♣♣',
+    '♣....................≈≈≈≈..♣',
+    '♣..###..✿.✿...#####.≈≈≈≈≈≈.♣',
+    '♣..#.+...✿....#...+.≈≈≈≈≈≈≈♣',
+    '♣..###........#####♣.≈≈≈≈≈≈♣',
+    '♣..........♣..........≈≈≈≈.♣',
+    '♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣♣',
   ];
 
   const town = buildTownFromAscii(
@@ -186,23 +186,27 @@ export function createOakhavenMap(): ZoneMap {
     layout,
     [
       { id: 'torin', x: 7, y: 2, glyph: '@', color: '#F59E0B', name: 'Torin Ironhand', title: 'Blacksmith & Forgemaster' },
-      { id: 'mira', x: 18, y: 2, glyph: '@', color: '#4EA885', name: 'Herbalist Mira', title: 'Apothecary' },
-      { id: 'vance', x: 14, y: 10, glyph: '@', color: '#60A5FA', name: 'Warden Vance', title: 'Outpost Captain' },
-      { id: 'vex', x: 7, y: 11, glyph: '@', color: '#C084FC', name: 'Vex the Quiet', title: 'Shadow Broker' },
+      { id: 'mira', x: 22, y: 4, glyph: '@', color: '#4EA885', name: 'Herbalist Mira', title: 'Apothecary' },
+      { id: 'vance', x: 14, y: 8, glyph: '@', color: '#60A5FA', name: 'Warden Vance', title: 'Outpost Captain' },
+      { id: 'vex', x: 6, y: 13, glyph: '@', color: '#C084FC', name: 'Vex the Quiet', title: 'Shadow Broker' },
       { id: 'pell', x: 10, y: 5, glyph: '@', color: '#A8A29E', name: 'Pell the Carter', title: 'Outpost Carter', homeX: 10, homeY: 5, roams: true },
-      { id: 'wren', x: 21, y: 8, glyph: '@', color: '#FDE68A', name: 'Sister Wren', title: 'Shrine Keeper', homeX: 21, homeY: 8, roams: true },
+      { id: 'wren', x: 19, y: 8, glyph: '@', color: '#FDE68A', name: 'Sister Wren', title: 'Shrine Keeper', homeX: 19, homeY: 8, roams: true },
     ],
-    { x: 12, y: 9 },
-    { x: 12, y: 14 }
+    { x: 13, y: 9 },
+    { x: 13, y: 11 }
   );
   town.tiles[7][0].label = 'Silverwood Vale West Gate';
   // Phase 3 POI: the Old Outpost Oak — flavor landmark by the north wall.
   town.tiles[1][1].interactId = 'poi_old_oak';
   town.tiles[1][1].label = 'The Old Outpost Oak';
   town.critters = [makeCritter('town_cat', 15, 6)];
-  // Village pond on the south-east green (Phase 7 retheme): label its water.
+  // Village pond in the south-east (Phase 7 village redo): label its water.
   for (const [px, py] of [
-    [19, 14], [20, 14], [21, 14], [22, 14], [23, 14], [24, 14], [19, 15], [21, 15], [22, 15],
+    [21, 11], [22, 11], [23, 11], [24, 11],
+    [20, 12], [21, 12], [22, 12], [23, 12], [24, 12], [25, 12],
+    [20, 13], [21, 13], [22, 13], [23, 13], [24, 13], [25, 13], [26, 13],
+    [21, 14], [22, 14], [23, 14], [24, 14], [25, 14], [26, 14],
+    [22, 15], [23, 15], [24, 15], [25, 15],
   ] as const) {
     town.tiles[py][px].label = 'Oakhaven Pond';
   }

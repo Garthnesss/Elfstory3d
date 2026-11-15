@@ -620,6 +620,41 @@ export function getFloorTileCanvas(
     return canvas;
   }
 
+  if (biome === 'oakhaven') {
+    // Village grass: soft green base with speckles, blades and the odd
+    // flower — no slab grid, so the town ground reads as a meadow.
+    ctx.fillStyle = p.floorBase;
+    ctx.fillRect(0, 0, size, size);
+    const tones = [p.floorSlabA, p.floorSlabB, p.floorSlabC];
+    for (let i = 0; i < 90; i++) {
+      const hx = hash2d(v * 31 + i, i * 7 + v);
+      const hy = hash2d(i * 13 + v, v * 17 + i);
+      ctx.fillStyle = tones[i % 3];
+      ctx.globalAlpha = 0.35;
+      ctx.fillRect(Math.floor(hx * size), Math.floor(hy * size), 2, 2);
+    }
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = p.floorDetailA;
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 7; i++) {
+      const bx = Math.floor(hash2d(i * 3 + v, v + i) * (size - 4)) + 2;
+      const by = Math.floor(hash2d(v + i * 5, i * 11 + v) * (size - 6)) + 4;
+      ctx.beginPath();
+      ctx.moveTo(bx, by);
+      ctx.lineTo(bx + (i % 2 === 0 ? 1 : -1), by - 3);
+      ctx.stroke();
+    }
+    if (v % 4 === 1) {
+      ctx.fillStyle = p.floorDetailB;
+      const fx = Math.floor(hash2d(v, 99) * (size - 8)) + 4;
+      const fy = Math.floor(hash2d(99, v) * (size - 8)) + 4;
+      ctx.fillRect(fx, fy, 2, 2);
+      ctx.fillRect(fx + 3, fy + 2, 2, 2);
+    }
+    tileCache.set(key, canvas);
+    return canvas;
+  }
+
   ctx.fillStyle = p.floorBase;
   ctx.fillRect(0, 0, size, size);
 
@@ -711,7 +746,7 @@ export function getFloorTileCanvas(
     ctx.fillRect(21, 26, 2, 1);
   }
   if (v === 5 || v === 9 || v === 13) {
-    if (biome === 'oakhaven' || biome === 'overworld' || biome === 'thornwick') {
+    if (biome === 'overworld' || biome === 'thornwick') {
       // Grass blades + tiny wildflower / spore speck
       ctx.fillStyle = p.floorDetailA;
       ctx.fillRect(8, 19, 2, 4);

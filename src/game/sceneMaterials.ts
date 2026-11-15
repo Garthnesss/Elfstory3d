@@ -245,6 +245,38 @@ export function getFloorTexture(
   const p = getBiomePalette(biome);
   const s = 64;
   const [canvas, ctx] = makeCanvas(s);
+  if (ctx && biome === 'oakhaven' && !isVault) {
+    // Village meadow grass (Phase 7 redo): soft green with speckle, blades
+    // and the odd flower — no flagstone grid, so the ground reads as grass.
+    ctx.fillStyle = brightenHex(p.floorBase, 2.2);
+    ctx.fillRect(0, 0, s, s);
+    const gTones = [brightenHex(p.floorSlabA, 2.25), brightenHex(p.floorSlabB, 2.2), brightenHex(p.floorSlabC, 2.3)];
+    for (let i = 0; i < 110; i++) {
+      const gx = ((v * 29 + i * 37) % 60) + 2;
+      const gy = ((v * 41 + i * 23) % 60) + 2;
+      ctx.fillStyle = gTones[i % 3];
+      ctx.globalAlpha = 0.3;
+      ctx.fillRect(gx, gy, 2, 2);
+    }
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = p.floorDetailA;
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 9; i++) {
+      const bx = ((v * 13 + i * 17) % 56) + 4;
+      const by = ((v * 7 + i * 19) % 52) + 8;
+      ctx.beginPath();
+      ctx.moveTo(bx, by);
+      ctx.lineTo(bx + (i % 2 === 0 ? 1 : -1), by - 4);
+      ctx.stroke();
+    }
+    if (v === 2 || v === 6) {
+      ctx.fillStyle = p.floorDetailB;
+      ctx.fillRect(20, 30, 2, 2);
+      ctx.fillRect(44, 18, 2, 2);
+      ctx.fillRect(33, 47, 2, 2);
+    }
+    return textureFromCanvas(key, canvas);
+  }
   if (ctx) {
     // Lift brightness ~2.1x over 2D flat palette so 3D Lambert shading reads richly
     const base = isVault ? '#3b2d22' : brightenHex(p.floorBase, 2.2);
@@ -319,6 +351,27 @@ export function getRoadTexture(biome: BiomeId, variant: number): THREE.CanvasTex
   const p = getBiomePalette(biome);
   const s = 64;
   const [canvas, ctx] = makeCanvas(s);
+  if (ctx && biome === 'oakhaven') {
+    // Worn dirt path (Phase 7 redo): soft blotches and speckle, no cobbles.
+    ctx.fillStyle = brightenHex(p.roadBase, 1.95);
+    ctx.fillRect(0, 0, s, s);
+    const dTones = [brightenHex(p.roadStoneA, 1.85), brightenHex(p.roadStoneB, 1.85), brightenHex(p.roadStoneC, 1.9)];
+    for (let i = 0; i < 26; i++) {
+      const cx = ((v * 23 + i * 29) % 56) + 4;
+      const cy = ((v * 31 + i * 13) % 56) + 4;
+      ctx.fillStyle = dTones[i % 3];
+      ctx.globalAlpha = 0.35;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 5 + (i % 4), 3 + (i % 3), 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = brightenHex(p.roadBase, 1.2);
+    for (let i = 0; i < 40; i++) {
+      ctx.fillRect(((v * 17 + i * 31) % 62) + 1, ((v * 11 + i * 43) % 62) + 1, 1, 1);
+    }
+    return textureFromCanvas(key, canvas);
+  }
   if (ctx) {
     ctx.fillStyle = brightenHex(p.roadBase, 1.95);
     ctx.fillRect(0, 0, s, s);
@@ -372,6 +425,29 @@ export function getWallTopTexture(biome: BiomeId, variant: number): THREE.Canvas
   const p = getBiomePalette(biome);
   const s = 64;
   const [canvas, ctx] = makeCanvas(s);
+  if (ctx && biome === 'oakhaven') {
+    // Terracotta shingle roof: overlapping rows with scalloped bottoms and
+    // offset seams, so cottage tops read as tiled roofs from above.
+    ctx.fillStyle = brightenHex(p.wallTop, 1.25);
+    ctx.fillRect(0, 0, s, s);
+    const rowH = 8;
+    for (let row = 0; row * rowH < s + rowH; row++) {
+      const y = row * rowH;
+      const off = row % 2 === 0 ? 0 : 8;
+      ctx.fillStyle = row % 2 === 0 ? brightenHex(p.wallTop, 1.45) : brightenHex(p.wallTopAlt, 1.4);
+      ctx.fillRect(0, y, s, rowH);
+      ctx.fillStyle = brightenHex(p.wallTopDark, 1.15);
+      for (let x = -off; x < s; x += 16) {
+        ctx.beginPath();
+        ctx.arc(x + 8, y + rowH, 8, 0, Math.PI, false);
+        ctx.fill();
+        ctx.fillRect(x, y, 1, rowH);
+      }
+      ctx.fillStyle = 'rgba(255, 235, 200, 0.20)';
+      ctx.fillRect(0, y, s, 1);
+    }
+    return textureFromCanvas(key, canvas);
+  }
   if (ctx) {
     ctx.fillStyle = brightenHex(p.wallTop, 1.45);
     ctx.fillRect(0, 0, s, s);
@@ -453,6 +529,30 @@ export function getWallSideTexture(
     } else if (v === 3) {
       ctx.fillStyle = p.wallAccentSoft;
       ctx.fillRect(36, 36, 12, 5);
+    }
+
+    if (biome === 'oakhaven') {
+      // Half-timbered cottage wall: warm plaster with dark timber framing
+      // overpainted on the masonry (village redo).
+      ctx.fillStyle = brightenHex(p.wallFace, 1.55);
+      ctx.fillRect(0, 0, s, s);
+      ctx.fillStyle = brightenHex(p.wallFaceAlt, 1.5);
+      ctx.globalAlpha = 0.35;
+      ctx.fillRect(6, 8, 20, 18);
+      ctx.fillRect(38, 34, 18, 20);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = p.wallMortar;
+      ctx.fillRect(0, 0, 6, s);
+      ctx.fillRect(s - 6, 0, 6, s);
+      ctx.fillRect(29, 0, 6, s);
+      ctx.fillRect(0, 0, s, 6);
+      ctx.fillRect(0, 29, s, 6);
+      ctx.fillRect(0, s - 6, s, 6);
+      ctx.save();
+      ctx.translate(32, 48);
+      ctx.rotate(Math.PI / 4);
+      ctx.fillRect(-3, -14, 6, 28);
+      ctx.restore();
     }
 
     // Top cornice highlight + bottom ambient occlusion shadow
