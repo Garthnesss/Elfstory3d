@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="ElfStory emblem: an amber sun rising over a citadel">
+  <rect width="512" height="512" rx="96" fill="#0B0D12"/>
+  <!-- sun rays -->
+  <g stroke="#F59E0B" stroke-width="14" stroke-linecap="round">
+    <line x1="352" y1="196" x2="380" y2="196"/>
+    <line x1="323.9" y1="263.9" x2="343.7" y2="283.7"/>
+    <line x1="256" y1="292" x2="256" y2="320"/>
+    <line x1="188.1" y1="263.9" x2="168.3" y2="283.7"/>
+    <line x1="160" y1="196" x2="132" y2="196"/>
+    <line x1="188.1" y1="128.1" x2="168.3" y2="108.3"/>
+    <line x1="256" y1="100" x2="256" y2="72"/>
+    <line x1="323.9" y1="128.1" x2="343.7" y2="108.3"/>
+  </g>
+  <!-- sun disc -->
+  <circle cx="256" cy="196" r="78" fill="#F59E0B"/>
+  <circle cx="256" cy="196" r="56" fill="#FBBF24"/>
+  <!-- citadel silhouette with battlements -->
+  <path d="M104 424 V292 h28 v-26 h26 v26 h14 V234 h26 v-30 h116 v30 h26 V292 h14 v-26 h26 v26 h28 V424 Z"
+        fill="#131926" stroke="#F59E0B" stroke-width="6" stroke-linejoin="round"/>
+  <!-- gate -->
+  <path d="M240 424 v-44 a16 16 0 0 1 32 0 v44 Z" fill="#F59E0B"/>
+</svg>

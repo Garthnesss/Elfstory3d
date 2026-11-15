@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>ElfStory 3D — 2.5D Isometric Dungeon Crawl RPG</title>
+    <meta name="description" content="A 2.5D isometric fantasy dungeon-crawl RPG with turn-based tactical combat, procedural loot, branching NPC dialogue trees, and hybrid skill builds." />
+    <meta property="og:title" content="ElfStory 3D — 2.5D Isometric Dungeon Crawl RPG" />
+    <meta property="og:description" content="A 2.5D isometric fantasy dungeon-crawl RPG with turn-based tactical combat, procedural loot, branching NPC dialogue trees, and hybrid skill builds." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="theme-color" content="#0B0D12" />
+  </head>
+  <body class="bg-[#0B0D12] text-[#ECE4D4] antialiased selection:bg-amber-500/30 selection:text-amber-100 overflow-hidden">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Phase 6 PWA: register the app-shell service worker. Guarded to
+      // http(s) so a single-file standalone build opened via file://
+      // never registers (or throws) — registration lives only here.
+      if (
+        'serviceWorker' in navigator &&
+        (location.protocol === 'https:' || location.protocol === 'http:')
+      ) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('sw.js').catch(() => {});
+        });
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,200 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidSaveSlotId(saveId) {
+      return saveId in ['active', 'slot_1', 'slot_2', 'slot_3'];
+    }
+
+    function isValidSaveSlot(data, userId) {
+      return data.keys().hasAll([
+        'ownerId',
+        'starterClass',
+        'level',
+        'zoneId',
+        'zoneName',
+        'buildTitle',
+        'kills',
+        'gold',
+        'savePayload',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'ownerId',
+        'starterClass',
+        'level',
+        'zoneId',
+        'zoneName',
+        'buildTitle',
+        'kills',
+        'gold',
+        'savePayload',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.ownerId is string &&
+      data.ownerId.size() <= 128 &&
+      data.ownerId == userId &&
+      data.starterClass is string &&
+      data.starterClass.size() <= 32 &&
+      data.starterClass in ['Vanguard', 'Shadowcraft', 'Runecaster', 'Wanderer'] &&
+      data.level is int &&
+      data.level >= 1 &&
+      data.level <= 999 &&
+      data.zoneId is string &&
+      data.zoneId.size() >= 1 &&
+      data.zoneId.size() <= 32 &&
+      data.zoneId.matches('^[a-z0-9_]+$') &&
+      data.zoneName is string &&
+      data.zoneName.size() >= 1 &&
+      data.zoneName.size() <= 80 &&
+      data.buildTitle is string &&
+      data.buildTitle.size() >= 1 &&
+      data.buildTitle.size() <= 64 &&
+      data.kills is int &&
+      data.kills >= 0 &&
+      data.gold is int &&
+      data.gold >= 0 &&
+      data.savePayload is map &&
+      data.savePayload.keys().hasAll(['player', 'zones', 'currentZoneId', 'worldFlags', 'quests', 'merchantStocks', 'logs']) &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidChronicle(data, userId) {
+      return data.keys().hasAll([
+        'ownerId',
+        'outcome',
+        'starterClass',
+        'buildTitle',
+        'level',
+        'deepestDepth',
+        'kills',
+        'turnsElapsed',
+        'gold',
+        'keyDecisions',
+        'createdAt'
+      ]) &&
+      data.keys().hasOnly([
+        'ownerId',
+        'outcome',
+        'starterClass',
+        'buildTitle',
+        'level',
+        'deepestDepth',
+        'kills',
+        'turnsElapsed',
+        'gold',
+        'keyDecisions',
+        'createdAt'
+      ]) &&
+      data.ownerId is string &&
+      data.ownerId.size() <= 128 &&
+      data.ownerId == userId &&
+      data.outcome is string &&
+      data.outcome.size() <= 16 &&
+      data.outcome in ['victory', 'fallen'] &&
+      data.starterClass is string &&
+      data.starterClass.size() <= 32 &&
+      data.starterClass in ['Vanguard', 'Shadowcraft', 'Runecaster', 'Wanderer'] &&
+      data.buildTitle is string &&
+      data.buildTitle.size() >= 1 &&
+      data.buildTitle.size() <= 64 &&
+      data.level is int &&
+      data.level >= 1 &&
+      data.level <= 999 &&
+      data.deepestDepth is int &&
+      data.deepestDepth >= 0 &&
+      data.deepestDepth <= 999 &&
+      data.kills is int &&
+      data.kills >= 0 &&
+      data.turnsElapsed is int &&
+      data.turnsElapsed >= 0 &&
+      data.gold is int &&
+      data.gold >= 0 &&
+      data.keyDecisions is list &&
+      data.keyDecisions.size() <= 8 &&
+      (data.keyDecisions.size() <= 0 || (data.keyDecisions[0] is string && data.keyDecisions[0].size() <= 120)) &&
+      (data.keyDecisions.size() <= 1 || (data.keyDecisions[1] is string && data.keyDecisions[1].size() <= 120)) &&
+      (data.keyDecisions.size() <= 2 || (data.keyDecisions[2] is string && data.keyDecisions[2].size() <= 120)) &&
+      (data.keyDecisions.size() <= 3 || (data.keyDecisions[3] is string && data.keyDecisions[3].size() <= 120)) &&
+      (data.keyDecisions.size() <= 4 || (data.keyDecisions[4] is string && data.keyDecisions[4].size() <= 120)) &&
+      (data.keyDecisions.size() <= 5 || (data.keyDecisions[5] is string && data.keyDecisions[5].size() <= 120)) &&
+      (data.keyDecisions.size() <= 6 || (data.keyDecisions[6] is string && data.keyDecisions[6].size() <= 120)) &&
+      (data.keyDecisions.size() <= 7 || (data.keyDecisions[7] is string && data.keyDecisions[7].size() <= 120)) &&
+      data.createdAt is timestamp;
+    }
+
+    match /users/{userId}/saves/{saveId} {
+      allow get: if isValidId(userId) && isValidId(saveId) && isValidSaveSlotId(saveId) && isOwner(userId) && resource.data.ownerId == request.auth.uid;
+      allow list: if isValidId(userId) && isOwner(userId) && resource.data.ownerId == request.auth.uid;
+
+      allow create: if isValidId(userId) &&
+        isValidId(saveId) &&
+        isValidSaveSlotId(saveId) &&
+        isOwner(userId) &&
+        isValidSaveSlot(incoming(), userId) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+
+      allow update: if isValidId(userId) &&
+        isValidId(saveId) &&
+        isValidSaveSlotId(saveId) &&
+        isOwner(userId) &&
+        isValidSaveSlot(incoming(), userId) &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'starterClass',
+          'level',
+          'zoneId',
+          'zoneName',
+          'buildTitle',
+          'kills',
+          'gold',
+          'savePayload',
+          'updatedAt'
+        ]);
+
+      allow delete: if isValidId(userId) && isValidId(saveId) && isValidSaveSlotId(saveId) && isOwner(userId) && existing().ownerId == request.auth.uid;
+    }
+
+    match /users/{userId}/chronicles/{entryId} {
+      allow get: if isValidId(userId) && isValidId(entryId) && isOwner(userId) && resource.data.ownerId == request.auth.uid;
+      allow list: if isValidId(userId) && isOwner(userId) && resource.data.ownerId == request.auth.uid;
+
+      allow create: if isValidId(userId) &&
+        isValidId(entryId) &&
+        isOwner(userId) &&
+        isValidChronicle(incoming(), userId) &&
+        incoming().createdAt == request.time;
+
+      allow update, delete: if false;
+    }
+  }
+}

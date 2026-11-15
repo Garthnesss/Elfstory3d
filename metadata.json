@@ -1,0 +1,6 @@
+{
+  "name": "ElfStory",
+  "description": "A stylized ASCII fantasy dungeon-crawl RPG with turn-based tactical combat, procedural loot, branching NPC dialogue trees, and hybrid skill builds.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
