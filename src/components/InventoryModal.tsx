@@ -310,7 +310,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                 : 'bg-[#141923] text-slate-300 border border-white/10'
             }`}
           >
-            Loadout & Runes
+            Loadout
           </button>
         </div>
 
@@ -719,6 +719,54 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
             )}
           </div>
         </div>
+
+        {/* Mobile quick-action bar — the selected item's primary action at thumb reach, no scrolling */}
+        {selectedItem && (
+          <div className="lg:hidden shrink-0 border-t border-white/10 bg-[#0D1119] px-3 py-2.5 flex items-center gap-2">
+            <span
+              className="flex-1 min-w-0 truncate text-[11px] font-semibold"
+              style={{ color: RARITY_COLOR[selectedItem.rarity] }}
+            >
+              {selectedItem.name}
+            </span>
+            {equippedSlotMatch && (
+              <button
+                type="button"
+                onClick={() => onUnequipItem(equippedSlotMatch)}
+                className="shrink-0 min-h-[44px] px-3 rounded border border-white/18 bg-[#1A2130] text-xs font-medium text-slate-100 cursor-pointer"
+              >
+                Unequip
+              </button>
+            )}
+            {isSelectedInPack && selectedItem.category === 'equipment' && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onSalvageItem(selectedItem.id)}
+                  className="shrink-0 min-h-[44px] px-3 rounded border border-white/15 bg-[#141923] text-xs font-medium text-slate-200 cursor-pointer"
+                >
+                  Salvage +{getSalvageGoldYield(selectedItem)}g
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onEquipItem(selectedItem.id)}
+                  className="shrink-0 min-h-[44px] px-4 rounded bg-amber-500 text-[#0B0D12] text-xs font-semibold cursor-pointer"
+                >
+                  {equippedCompare ? `Swap ${SLOT_LABEL[selectedItem.slot!]}` : `Equip ${SLOT_LABEL[selectedItem.slot!]}`}
+                </button>
+              </>
+            )}
+            {isSelectedInPack && selectedItem.category === 'consumable' && (
+              <button
+                type="button"
+                onClick={() => onUseConsumable(selectedItem.id)}
+                className="shrink-0 min-h-[44px] px-4 rounded bg-emerald-500 text-[#0B0D12] text-xs font-semibold cursor-pointer"
+              >
+                Use Item
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

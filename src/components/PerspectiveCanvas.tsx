@@ -1,13 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Camera,
   Eye,
   Map as MapIcon,
-  RotateCcw,
-  RotateCw,
   X,
-  ZoomIn,
-  ZoomOut,
 } from 'lucide-react';
 import * as THREE from 'three';
 import { chebyshev, findPathPoints } from '../game/combat';
@@ -156,11 +151,7 @@ function getTileContextHint(tile: Tile): string | null {
   }
 }
 
-const ZOOM_STEPS = [21, 28, 36, 44] as const;
-const VIEW_MODES: Array<{ id: CameraViewMode; label: string; title: string }> = [
-  { id: 'tactical', label: 'Top', title: 'Overhead Tactical 3D (V)' },
-  { id: 'chase', label: '3rd', title: '3rd Person Chase 3D (V)' },
-];
+const ZOOM_STEPS = [14, 17, 21, 28, 36, 44] as const;
 
 interface AmbientMote {
   rx: number;
@@ -281,7 +272,7 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
     }
   };
 
-  const [internalViewMode, setInternalViewMode] = useState<CameraViewMode>(() => {
+  const [internalViewMode] = useState<CameraViewMode>(() => {
     try {
       const v = localStorage.getItem('elfstory3d-view-mode');
       if (v === 'chase' || v === 'tactical') return v;
@@ -292,19 +283,6 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
   });
 
   const viewMode = controlledViewMode ?? internalViewMode;
-  const setViewMode = (next: CameraViewMode) => {
-    if (onViewModeChange) onViewModeChange(next);
-    else setInternalViewMode(next);
-    try {
-      localStorage.setItem('elfstory3d-view-mode', next);
-    } catch {
-      // ignore
-    }
-  };
-
-  const rotateCamera = (delta: number) => {
-    setYawIndex(normalizeYawIndex(yawIndex + delta));
-  };
 
   const [showMobileMap, setShowMobileMap] = useState<boolean>(false);
   const [inspectMode, setInspectMode] = useState<boolean>(false);
@@ -328,6 +306,11 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
     movedPx: 0,
     longPressTimer: null,
     longPressUsed: false,
+  });
+
+  const pinchRef = useRef<{ pointers: Map<number, { x: number; y: number }>; lastDist: number }>({
+    pointers: new Map(),
+    lastDist: 0,
   });
 
   const stateRef = useRef({
@@ -1830,6 +1813,20 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const d = dragRef.current;
+
+    // Pinch-to-zoom: track every pointer; a second finger takes over from drag / long-press.
+    const pinch = pinchRef.current;
+    pinch.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch.pointers.size === 2) {
+      const [p1, p2] = [...pinch.pointers.values()];
+      pinch.lastDist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+      d.movedPx = 999;
+      if (d.longPressTimer) {
+        window.clearTimeout(d.longPressTimer);
+        d.longPressTimer = null;
+      }
+    }
+
     d.active = true;
     d.pointerId = e.pointerId;
     d.startX = e.clientX;
@@ -1853,6 +1850,25 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const d = dragRef.current;
     const s = stateRef.current;
+
+    // Pinch-to-zoom: two active pointers step the zoom instead of drag-looking.
+    const pinch = pinchRef.current;
+    if (pinch.pointers.has(e.pointerId)) {
+      pinch.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pinch.pointers.size === 2 && pinch.lastDist > 0) {
+        const [p1, p2] = [...pinch.pointers.values()];
+        const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+        const zi = ZOOM_STEPS.indexOf(tileSize as (typeof ZOOM_STEPS)[number]);
+        if (zi >= 0 && dist > pinch.lastDist * 1.18 && zi < ZOOM_STEPS.length - 1) {
+          setTileSize(ZOOM_STEPS[zi + 1]);
+          pinch.lastDist = dist;
+        } else if (zi >= 0 && dist < pinch.lastDist / 1.18 && zi > 0) {
+          setTileSize(ZOOM_STEPS[zi - 1]);
+          pinch.lastDist = dist;
+        }
+        return;
+      }
+    }
 
     if (d.active && d.pointerId === e.pointerId) {
       const dxTotal = Math.hypot(e.clientX - d.startX, e.clientY - d.startY);
@@ -1909,6 +1925,8 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
   };
 
   const endPointer = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    pinchRef.current.pointers.delete(e.pointerId);
+    if (pinchRef.current.pointers.size < 2) pinchRef.current.lastDist = 0;
     const d = dragRef.current;
     if (d.longPressTimer) {
       window.clearTimeout(d.longPressTimer);
@@ -1997,120 +2015,8 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
         className="pointer-events-none absolute inset-0 block w-full h-full"
       />
 
-      {/* Desktop 3D Camera View Mode + Turn + Zoom Controls (Bottom-Left) */}
-      <div className="hidden md:flex absolute bottom-3 left-3 z-20 items-center gap-1 rounded border border-white/12 bg-[#0D121A]/88 px-2 py-1 shadow-lg backdrop-blur-sm">
-        <Camera className="w-3.5 h-3.5 text-amber-300 mr-0.5" />
-        <button
-          type="button"
-          title="Toggle camera view (Top / 3rd person)"
-          onClick={(e) => {
-            e.currentTarget.blur();
-            const order: CameraViewMode[] = ['tactical', 'chase'];
-            setViewMode(order[(order.indexOf(viewMode) + 1) % order.length]);
-          }}
-          className="px-2 py-0.5 rounded text-[11px] font-mono-glyph font-semibold bg-amber-500 text-[#0B0D12] transition-colors cursor-pointer"
-        >
-          {VIEW_MODES.find((m) => m.id === viewMode)?.label ?? 'Top'}
-        </button>
-
-        <div className="w-px h-4 bg-white/12 mx-1" />
-
-        <button
-          type="button"
-          onClick={(e) => {
-            e.currentTarget.blur();
-            rotateCamera(-1);
-          }}
-          title="Turn Left 90° ([ / C)"
-          aria-label="Turn camera left"
-          className="h-7 w-7 rounded hover:bg-white/10 text-slate-200 flex items-center justify-center cursor-pointer"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.currentTarget.blur();
-            rotateCamera(1);
-          }}
-          title="Turn Right 90° (] / E)"
-          aria-label="Turn camera right"
-          className="h-7 w-7 rounded hover:bg-white/10 text-slate-200 flex items-center justify-center cursor-pointer"
-        >
-          <RotateCw className="w-3.5 h-3.5" />
-        </button>
-
-        <>
-            <div className="w-px h-4 bg-white/12 mx-1" />
-            <button
-              type="button"
-              disabled={zoomIndex <= 0}
-              onClick={(e) => {
-                e.currentTarget.blur();
-                if (zoomIndex > 0) setTileSize(ZOOM_STEPS[zoomIndex - 1]);
-              }}
-              title="Zoom out"
-              aria-label="Zoom out"
-              className="h-7 w-7 rounded hover:bg-white/10 text-slate-200 disabled:opacity-35 flex items-center justify-center cursor-pointer"
-            >
-              <ZoomOut className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              disabled={zoomIndex >= ZOOM_STEPS.length - 1}
-              onClick={(e) => {
-                e.currentTarget.blur();
-                if (zoomIndex < ZOOM_STEPS.length - 1) setTileSize(ZOOM_STEPS[zoomIndex + 1]);
-              }}
-              title="Zoom in"
-              aria-label="Zoom in"
-              className="h-7 w-7 rounded hover:bg-white/10 text-slate-200 disabled:opacity-35 flex items-center justify-center cursor-pointer"
-            >
-              <ZoomIn className="w-3.5 h-3.5" />
-            </button>
-        </>
-      </div>
-
-      {/* Mobile Top-Right Turn / View / Look / Map Controls */}
+      {/* Mobile Top-Right Look / Map Controls */}
       <div className="md:hidden absolute top-2 right-2 z-20 flex items-center gap-1">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.currentTarget.blur();
-            const order: CameraViewMode[] = ['tactical', 'chase'];
-            const next = order[(order.indexOf(viewMode) + 1) % order.length];
-            setViewMode(next);
-          }}
-          aria-label="Cycle 3D camera view"
-          className="h-11 px-2.5 rounded border border-white/15 bg-[#0D121A]/88 text-amber-200 text-[11px] font-mono-glyph font-semibold flex items-center justify-center shadow-md cursor-pointer"
-        >
-          {VIEW_MODES.find((m) => m.id === viewMode)?.label ?? 'Top'}
-        </button>
-
-        <button
-          type="button"
-          onClick={(e) => {
-            e.currentTarget.blur();
-            rotateCamera(-1);
-          }}
-          aria-label="Turn camera left"
-          className="h-11 w-11 rounded border border-white/15 bg-[#0D121A]/88 text-slate-200 flex items-center justify-center shadow-md cursor-pointer"
-        >
-          <RotateCcw className="w-4 h-4" />
-        </button>
-
-        <button
-          type="button"
-          onClick={(e) => {
-            e.currentTarget.blur();
-            rotateCamera(1);
-          }}
-          aria-label="Turn camera right"
-          className="h-11 w-11 rounded border border-white/15 bg-[#0D121A]/88 text-slate-200 flex items-center justify-center shadow-md cursor-pointer"
-        >
-          <RotateCw className="w-4 h-4" />
-        </button>
-
         <button
           type="button"
           onClick={(e) => {

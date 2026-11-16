@@ -55,7 +55,7 @@ export function getPerspectivePose(
   tileSize: number
 ): CameraPose {
   const fwd = getCameraForwardVector(yawRad);
-  const zoomScale = 36 / Math.max(20, Math.min(52, tileSize));
+  const zoomScale = 36 / Math.max(13, Math.min(52, tileSize));
 
   if (mode === 'tactical') {
     const backDist = 6.0 * zoomScale;
