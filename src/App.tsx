@@ -95,7 +95,7 @@ import {
 } from './game/cloudSave';
 import {
   BESTIARY_DEFS,
-  computeBestiaryPerks,
+  computeBestiaryRanks,
   FEAT_DEFS,
   TOWN_UPGRADE_DEFS,
 } from './game/codex';
@@ -117,19 +117,14 @@ import {
   createQuestItem,
   createRandomSetRelic,
   createStarterItem,
-  enchantEquipmentItem,
-  generateInscription,
   generateProceduralItem,
-  getSalvageDustYield,
-  getStarterInscriptions,
-  INSCRIPTION_META,
-  rerollEquipmentAffix,
-  RUNE_ENCHANTS,
+  getSalvageGoldYield,
   upgradeEquipmentItem,
 } from './game/loot';
 import { createMerchantStock, LORE_ENTRIES, NPCS, QUEST_DEFS } from './game/npcs';
 import {
   canLearnProdigy,
+  PRODIGY_SKILL_COST,
   canLearnSkill,
   computeDerivedStats,
   computeRespecPoints,
@@ -157,7 +152,6 @@ import {
   ProdigyId,
   ProjectileEffect,
   QuestProgress,
-  RuneEnchantId,
   SaveSlotId,
   SkillId,
   StatusKind,
@@ -280,7 +274,6 @@ function makeCompanion(kind: CompanionKind, x: number, y: number, level = 1): Co
       y,
       hp: maxHp,
       maxHp,
-      stance: 'aggressive',
       respawnCooldown: 0,
     };
   }
@@ -291,7 +284,6 @@ function makeCompanion(kind: CompanionKind, x: number, y: number, level = 1): Co
     y,
     hp: maxHp,
     maxHp,
-    stance: 'aggressive',
     respawnCooldown: 0,
   };
 }
@@ -346,17 +338,13 @@ function createInitialPlayer(starterClass: PlayerState['starterClass']): PlayerS
     xp: 0,
     xpToNext: 65,
     gold: 35,
-    glyphDust: 6,
     attributePoints: 0,
     skillPoints: 1,
     attributes: { ...preset.attributes },
     skills: { [preset.initialSkill]: 1 },
     hotbar: [preset.initialSkill, null, null, null, null],
     cooldowns: {},
-    inscriptions: getStarterInscriptions(starterClass),
-    inscriptionCooldowns: [0, 0, 0],
     prodigies: [],
-    prodigyPoints: 0,
     prodigyCooldowns: {},
     hasteSteps: 0,
     bonusHp: 0,
@@ -529,7 +517,6 @@ export default function App() {
   ]);
 
   const [armedSkill, setArmedSkill] = useState<SkillId | null>(null);
-  const [armedInscriptionSlot, setArmedInscriptionSlot] = useState<number | null>(null);
   const [aimedTarget, setAimedTarget] = useState<{ x: number; y: number } | null>(null);
   const [autoExploring, setAutoExploring] = useState(false);
   const [activeDialogue, setActiveDialogue] = useState<{ npcId: string; nodeId: string } | null>(
@@ -718,6 +705,20 @@ export default function App() {
   const currentZone = zones[currentZoneId];
   const derived = useMemo(() => computeDerivedStats(player, worldFlags), [player, worldFlags]);
 
+  // NPCs with unfinished quest business (giver names from QUEST_DEFS), for
+  // the 3D view's quest-diamond nameplates.
+  const questNpcNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const def of Object.values(QUEST_DEFS)) {
+      if (quests[def.id]?.status === 'completed') continue;
+      for (const part of def.giver.split('/')) {
+        const n = part.trim();
+        if (n) names.add(n);
+      }
+    }
+    return names;
+  }, [quests]);
+
   // ---- Phase 2: procedural music ---------------------------------------
   // Audio may only start after a user gesture; the engine's scheduler idles
   // until its context exists and is running, so this unlock listener plus
@@ -795,8 +796,7 @@ export default function App() {
       consumableCount: countConsumables(player.inventory),
       dialogueOpen: activeDialogue !== null,
       anySkillOnCooldown:
-        Object.values(player.cooldowns).some((v) => (v ?? 0) > 0) ||
-        (player.inscriptionCooldowns ?? []).some((v) => (v ?? 0) > 0),
+        Object.values(player.cooldowns).some((v) => (v ?? 0) > 0),
       restedOrSaved: tutorialRestedRef.current,
     });
     if (complete) advanceTutorial();
@@ -1378,7 +1378,6 @@ export default function App() {
       questRewardGuardRef.current = new Set();
       setMerchantStocks(createInitialMerchants());
       setArmedSkill(null);
-      setArmedInscriptionSlot(null);
       setAimedTarget(null);
       setAutoExploring(false);
       setActivePanel('NONE');
@@ -1451,10 +1450,7 @@ export default function App() {
       data.player.starterClass === 'Runecaster' ? 'starlight_owl' : 'silverwind_lynx';
     const normalizedPlayer: PlayerState = {
       ...data.player,
-      inscriptions: data.player.inscriptions ?? [null, null, null],
-      inscriptionCooldowns: data.player.inscriptionCooldowns ?? [0, 0, 0],
       prodigies: data.player.prodigies ?? [],
-      prodigyPoints: data.player.prodigyPoints ?? 0,
       prodigyCooldowns: data.player.prodigyCooldowns ?? {},
       hasteSteps: data.player.hasteSteps ?? 0,
       bonusHp: data.player.bonusHp ?? 0,
@@ -1494,7 +1490,6 @@ export default function App() {
     setLogs(data.logs);
     setActivePanel('NONE');
     setArmedSkill(null);
-    setArmedInscriptionSlot(null);
     setAimedTarget(null);
     setAutoExploring(false);
     setZoneBanner(null);
@@ -1546,7 +1541,6 @@ export default function App() {
       y: spawn.y,
       statuses: [],
       cooldowns: {},
-      inscriptionCooldowns: [0, 0, 0],
       prodigyCooldowns: {},
       hasteSteps: 0,
       kills: 0,
@@ -1572,7 +1566,6 @@ export default function App() {
     questRewardGuardRef.current = new Set();
     setMerchantStocks(freshMerchants);
     setArmedSkill(null);
-    setArmedInscriptionSlot(null);
     setAimedTarget(null);
     setAutoExploring(false);
     setActivePanel('NONE');
@@ -1724,7 +1717,6 @@ export default function App() {
           unlocked.push(feat.id);
           unlockedAny = true;
           if (feat.rewardGold) nextP.gold += feat.rewardGold;
-          if (feat.rewardDust) nextP.glyphDust += feat.rewardDust;
           pushLog(
             `Feat Unlocked — ${feat.title}! (${feat.rewardLabel})`,
             'quest',
@@ -1759,9 +1751,6 @@ export default function App() {
         next.xpToNext = Math.round(next.xpToNext * 1.3);
         next.attributePoints += 2;
         next.skillPoints += 1;
-        if (next.level === 6 || next.level === 10) {
-          next.prodigyPoints = (next.prodigyPoints ?? 0) + 1;
-        }
         const d = computeDerivedStats(next, flagsOverride ?? worldFlags);
         next.maxHp = d.maxHp;
         next.maxMana = d.maxMana;
@@ -1778,21 +1767,12 @@ export default function App() {
         }
         leveledUp = true;
       }
-      // Phase 6 coach-mark: the first Prodigy point ever earned opens a
-      // choice (Skills → Milestone Prodigies) — hint once, here in the
-      // single XP funnel so every grant path is covered.
-      if ((p.prodigyPoints ?? 0) <= 0 && (next.prodigyPoints ?? 0) > 0) {
-        queueCoachMark('prodigy');
-      }
       return { nextPlayer: next, leveledUp };
     },
     [worldFlags, queueCoachMark]
   );
 
   const addItemToPlayer = useCallback((p: PlayerState, item: Item): PlayerState => {
-    // Phase 6 coach-mark: the first inscription ever gained is a choice
-    // moment (inscribe it, or swap it for a carried rune) — hint once.
-    if (item.category === 'inscription') queueCoachMark('inscription');
     if (item.category === 'consumable') {
       const existingIdx = p.inventory.findIndex((i) => i.consumableKind === item.consumableKind);
       if (existingIdx >= 0) {
@@ -1999,7 +1979,7 @@ export default function App() {
         if (newSpeciesKills === bestiaryDef.hunterKills) {
           soundEngine.playCodexUnlock();
           pushLog(
-            `Bestiary Hunter unlocked (${bestiaryDef.name}): ${bestiaryDef.hunterBonusLabel}!`,
+            `Bestiary Hunter rank unlocked (${bestiaryDef.name}) — codex updated!`,
             'quest',
             p.turnsElapsed
           );
@@ -2007,7 +1987,7 @@ export default function App() {
         if (newSpeciesKills === bestiaryDef.slayerKills) {
           soundEngine.playCodexUnlock();
           pushLog(
-            `Bestiary Slayer mastered (${bestiaryDef.name}): ${bestiaryDef.slayerBonusLabel}!`,
+            `Bestiary Slayer rank mastered (${bestiaryDef.name}) — codex entry complete!`,
             'arcane',
             p.turnsElapsed
           );
@@ -2093,13 +2073,10 @@ export default function App() {
           id: uid('drop'),
           x: enemy.x,
           y: enemy.y,
-          item: generateInscription(zone.depth, { minRarity: 'Rare' }),
+          item: generateProceduralItem(zone.depth, { minRarity: 'Rare' }),
         });
       } else if (enemy.rank === 'rare') {
-        const rareDrop =
-          Math.random() < 0.45
-            ? generateInscription(zone.depth, { minRarity: 'Rare' })
-            : generateProceduralItem(zone.depth + 1, { minRarity: 'Rare' });
+        const rareDrop = generateProceduralItem(zone.depth + 1, { minRarity: 'Rare' });
         nextZ.loot.push({
           id: uid('drop'),
           x: enemy.x,
@@ -2114,8 +2091,6 @@ export default function App() {
             : generateProceduralItem(zone.depth, { minRarity: 'Epic' })
           : Math.random() < 0.28
           ? createConsumable(Math.random() < 0.6 ? 'heal_potion' : 'mana_potion', 1)
-          : zone.depth >= 2 && Math.random() < 0.16
-          ? generateInscription(zone.depth, { minRarity: minRar })
           : generateProceduralItem(zone.depth, { minRarity: minRar });
         nextZ.loot.push({
           id: uid('drop'),
@@ -2142,9 +2117,9 @@ export default function App() {
           'quest',
           nextP.turnsElapsed
         );
-        if (nextP.level === 6 || nextP.level === 10) {
+        if (nextP.level === 6) {
           pushLog(
-            `Milestone Level ${nextP.level}! +1 Prodigy Point earned—open Skills [K] -> Milestone Prodigies!`,
+            'Level 6! Skill Capstones unlocked—open Skills [K] and scroll to Capstones!',
             'arcane',
             nextP.turnsElapsed
           );
@@ -2265,9 +2240,6 @@ export default function App() {
           Object.entries(startPlayer.cooldowns)
             .map(([k, v]) => [k, Math.max(0, (v ?? 0) - 1)])
             .filter(([, v]) => (v as number) > 0)
-        ),
-        inscriptionCooldowns: (startPlayer.inscriptionCooldowns ?? [0, 0, 0]).map((cd) =>
-          Math.max(0, cd - 1)
         ),
         prodigyCooldowns: nextProdCds,
       };
@@ -2431,33 +2403,19 @@ export default function App() {
           }
         } else if (comp.hp > 0) {
           const liveEnemies = curZ.enemies.filter((e) => survivingIds.has(e.id));
-          if (comp.stance === 'recall') {
-            if (chebyshev(comp.x, comp.y, curP.x, curP.y) > 1) {
-              const step = findPathNextStep(curZ, comp.x, comp.y, curP.x, curP.y);
-              if (
-                step &&
-                !(step.x === curP.x && step.y === curP.y) &&
-                !liveEnemies.some((e) => e.x === step.x && e.y === step.y)
-              ) {
-                comp.x = step.x;
-                comp.y = step.y;
-              }
-            }
-            if (comp.kind === 'silverwind_lynx' && curP.turnsElapsed % 3 === 0 && curP.hp < derivedStats.maxHp) {
-              curP.hp = Math.min(derivedStats.maxHp, curP.hp + 2);
-              spawnFloating(curP.x, curP.y, '+2 MEND', '#4EA885');
-            } else if (comp.kind === 'starlight_owl' && curP.turnsElapsed % 2 === 0 && curP.mana < derivedStats.maxMana) {
-              curP.mana = Math.min(derivedStats.maxMana, curP.mana + 1);
-              spawnFloating(curP.x, curP.y, '+1 MP', '#60A5FA');
-            }
-          } else {
-            const maxLeash = comp.stance === 'guard' ? 2 : 6;
+          // Companion aura trickle (always on; it used to be the Recall
+          // stance perk): the lynx mends you, the owl restores your mana.
+          if (comp.kind === 'silverwind_lynx' && curP.turnsElapsed % 3 === 0 && curP.hp < derivedStats.maxHp) {
+            curP.hp = Math.min(derivedStats.maxHp, curP.hp + 2);
+            spawnFloating(curP.x, curP.y, '+2 MEND', '#4EA885');
+          } else if (comp.kind === 'starlight_owl' && curP.turnsElapsed % 2 === 0 && curP.mana < derivedStats.maxMana) {
+            curP.mana = Math.min(derivedStats.maxMana, curP.mana + 1);
+            spawnFloating(curP.x, curP.y, '+1 MP', '#60A5FA');
+          }
+          {
+            const maxLeash = 6;
             const adjTarget = liveEnemies
-              .filter(
-                (e) =>
-                  chebyshev(comp.x, comp.y, e.x, e.y) === 1 &&
-                  (comp.stance === 'aggressive' || chebyshev(curP.x, curP.y, e.x, e.y) <= 2)
-              )
+              .filter((e) => chebyshev(comp.x, comp.y, e.x, e.y) === 1)
               .sort((a, b) => a.hp - b.hp)[0];
 
             if (adjTarget) {
@@ -2466,10 +2424,9 @@ export default function App() {
                   ? 6 + Math.floor(curP.level * 2.4) + Math.floor(curP.attributes.agility * 0.6)
                   : 5 + Math.floor(curP.level * 2.0) + Math.floor(curP.attributes.arcana * 0.7);
               const isCompCrit = comp.kind === 'silverwind_lynx' && Math.random() < 0.2;
-              const bestiaryMult = computeBestiaryPerks(activeFlags).damageMultiplierVs(adjTarget.archetype);
               const finalCompDmg = Math.max(
                 2,
-                Math.round(baseCompDmg * (isCompCrit ? 1.6 : 1) * bestiaryMult - adjTarget.def * 0.45)
+                Math.round(baseCompDmg * (isCompCrit ? 1.6 : 1) - adjTarget.def * 0.45)
               );
               adjTarget.hp -= finalCompDmg;
               soundEngine.playCompanion();
@@ -3144,14 +3101,14 @@ export default function App() {
         }
         tile.used = true;
         soundEngine.playQuill();
-        const dust = isStones ? 3 : 2;
-        setPlayer({ ...p, glyphDust: p.glyphDust + dust });
+        const gold = isStones ? 8 : 5;
+        setPlayer({ ...p, gold: p.gold + gold });
         setZones((prev) => ({ ...prev, [z.id]: { ...z } }));
-        spawnFloating(tx, ty, `+${dust} DUST`, '#FBBF24');
+        spawnFloating(tx, ty, `+${gold} GOLD`, '#FBBF24');
         pushLog(
           isStones
-            ? `Discovery: Standing Stones of the Vale (+${dust} Glyph Dust).`
-            : `Discovery: The Old Outpost Oak (+${dust} Glyph Dust).`,
+            ? `Discovery: Standing Stones of the Vale (+${gold} Gold).`
+            : `Discovery: The Old Outpost Oak (+${gold} Gold).`,
           'loot'
         );
         setSpecialPrompt({
@@ -3459,12 +3416,12 @@ export default function App() {
         if (tile.interactId?.endsWith('_boss_chest')) {
           const foundGold = 90 + z.depth * 22;
           const foundItem = createRandomSetRelic(z.depth);
-          const nextP = addItemToPlayer({ ...p, gold: p.gold + foundGold, glyphDust: p.glyphDust + 6 }, foundItem);
+          const nextP = addItemToPlayer({ ...p, gold: p.gold + foundGold + 10 }, foundItem);
           setPlayer(nextP);
           setZones((prev) => ({ ...prev, [z.id]: { ...z } }));
           spawnBurst(tx, ty, '#FBBF24', '✦', 12);
           pushLog(
-            `Side-Dungeon Hoard claimed: +${foundGold}g, +6 Glyph Dust, and ${foundItem.name}!`,
+            `Side-Dungeon Hoard claimed: +${foundGold + 10}g and ${foundItem.name}!`,
             'loot'
           );
           return true;
@@ -3472,14 +3429,12 @@ export default function App() {
         if (tile.interactId === 'vault_chest') {
           const foundGold = 60 + z.depth * 24 + Math.floor(Math.random() * 25);
           const foundItem = generateProceduralItem(z.depth + 2, { minRarity: 'Epic' });
-          const foundInsc = generateInscription(z.depth + 1, { minRarity: 'Rare' });
           let nextP = addItemToPlayer({ ...p, gold: p.gold + foundGold }, foundItem);
-          nextP = addItemToPlayer(nextP, foundInsc);
           setPlayer(nextP);
           setZones((prev) => ({ ...prev, [z.id]: { ...z } }));
           spawnBurst(tx, ty, '#FBBF24', '✦', 10);
           pushLog(
-            `Vault Reliquary looted: +${foundGold}g, ${foundItem.name}, and ${foundInsc.name}!`,
+            `Vault Reliquary looted: +${foundGold}g and ${foundItem.name}!`,
             'loot'
           );
           return true;
@@ -3490,7 +3445,7 @@ export default function App() {
         if (Math.random() < 0.5) {
           nextP = addItemToPlayer(nextP, createConsumable('heal_potion', 1));
         } else if (Math.random() < 0.35) {
-          nextP = addItemToPlayer(nextP, generateInscription(z.depth, { minRarity: 'Uncommon' }));
+          nextP = addItemToPlayer(nextP, createConsumable('mana_potion', 1));
         }
         setPlayer(nextP);
         setZones((prev) => ({ ...prev, [z.id]: { ...z } }));
@@ -3870,12 +3825,11 @@ export default function App() {
                   ...p,
                   mana: d.maxMana,
                   cooldowns: {},
-                  inscriptionCooldowns: [0, 0, 0],
-                  glyphDust: p.glyphDust + 8,
+                              gold: p.gold + 15,
                 };
                 recordWaystone(
                   nextP,
-                  'Starlight Surge resets all cooldowns, refills Mana, and yields +8 Glyph Dust!'
+                  'Starlight Surge resets all cooldowns, refills Mana, and yields +15 Gold!'
                 );
               },
             },
@@ -3912,15 +3866,15 @@ export default function App() {
         if (canTemper && equipTarget) {
           options.push({
             id: 'temper_forge',
-            label: `${freeTemper ? `[Might ${p.attributes.might}/3 · Free]` : '8 Glyph Dust:'} Temper ${equipTarget.name} (+1 Upgrade)`,
-            disabled: !freeTemper && p.glyphDust < 8,
+            label: `${freeTemper ? `[Might ${p.attributes.might}/3 · Free]` : '30 Gold:'} Temper ${equipTarget.name} (+1 Upgrade)`,
+            disabled: !freeTemper && p.gold < 30,
             tone: 'primary',
             onSelect: () => {
               soundEngine.playForge();
               const upgraded = upgradeEquipmentItem(equipTarget);
               const nextP: PlayerState = {
                 ...p,
-                glyphDust: freeTemper ? p.glyphDust : p.glyphDust - 8,
+                gold: freeTemper ? p.gold : p.gold - 30,
                 equipped: { ...p.equipped, [equipTarget.slot!]: upgraded },
               };
               const d = computeDerivedStats(nextP, worldFlags);
@@ -3956,14 +3910,14 @@ export default function App() {
         });
         options.push({
           id: 'harvest_embers',
-          label: 'Rake Cold Hearth for Glyph Dust (+10 Glyph Dust)',
+          label: 'Rake Cold Hearth for Gold (+20 Gold)',
           tone: 'secondary',
           onSelect: () => {
             soundEngine.playLoot();
-            const finalP = markForgeUsed({ ...p, glyphDust: p.glyphDust + 10 });
+            const finalP = markForgeUsed({ ...p, gold: p.gold + 20 });
             setPlayer(finalP);
-            spawnFloating(tx, ty, '+10 DUST', '#60A5FA');
-            pushLog('Harvested +10 Glyph Dust from the Forgotten Forge.', 'loot');
+            spawnFloating(tx, ty, '+20 GOLD', '#60A5FA');
+            pushLog('Harvested +20 Gold from the Forgotten Forge.', 'loot');
             setSpecialPrompt(null);
           },
         });
@@ -4006,7 +3960,7 @@ export default function App() {
           options: [
             {
               id: 'blood_pact',
-              label: `Offer ${bloodCost} HP (25% Max) for a Set Relic/Epic Gear & +14 Glyph Dust`,
+              label: `Offer ${bloodCost} HP (25% Max) for a Set Relic/Epic Gear & +25 Gold`,
               disabled: p.hp <= 2,
               tone: 'danger',
               onSelect: () => {
@@ -4017,20 +3971,20 @@ export default function App() {
                     ? createRandomSetRelic(z.depth)
                     : generateProceduralItem(z.depth + 1, { minRarity: 'Epic' });
                 const nextP = addItemToPlayer(
-                  { ...p, hp: Math.max(1, p.hp - bloodCost), glyphDust: p.glyphDust + 14 },
+                  { ...p, hp: Math.max(1, p.hp - bloodCost), gold: p.gold + 25 },
                   reward
                 );
                 const finalP = markAltarUsed(nextP);
                 setPlayer(finalP);
                 spawnBurst(tx, ty, '#C084FC', 'Ψ', 10);
                 spawnFloating(tx, ty, `-${bloodCost} HP`, '#EF4444');
-                pushLog(`Blood pact sealed: gained ${reward.name} & +14 Glyph Dust!`, 'loot');
+                pushLog(`Blood pact sealed: gained ${reward.name} & +25 Gold!`, 'loot');
                 setSpecialPrompt(null);
               },
             },
             {
               id: 'purify_altar',
-              label: `[Resolve ${p.attributes.resolve}/3] Purify the Altar (Full Heal, +45 XP, +10 Dust)`,
+              label: `[Resolve ${p.attributes.resolve}/3] Purify the Altar (Full Heal, +45 XP, +20 Gold)`,
               disabled: p.attributes.resolve < 3,
               tone: 'primary',
               onSelect: () => {
@@ -4040,14 +3994,14 @@ export default function App() {
                   hp: d.maxHp,
                   mana: d.maxMana,
                   statuses: [],
-                  glyphDust: p.glyphDust + 10,
+                  gold: p.gold + 20,
                 };
                 const xpRes = grantXpAndCheckLevel(healed, 45, worldFlags);
                 const finalP = markAltarUsed(xpRes.nextPlayer);
                 setPlayer(finalP);
                 spawnBurst(tx, ty, '#60A5FA', '✦', 10);
                 spawnFloating(tx, ty, 'PURIFIED!', '#60A5FA');
-                pushLog('You purified the Occult Altar! Full recovery, +45 XP, and +10 Glyph Dust.', 'quest');
+                pushLog('You purified the Occult Altar! Full recovery, +45 XP, and +20 Gold.', 'quest');
                 setSpecialPrompt(null);
               },
             },
@@ -4090,9 +4044,6 @@ export default function App() {
           }
         }
         nextP.cooldowns = shavedCds;
-        nextP.inscriptionCooldowns = (nextP.inscriptionCooldowns ?? [0, 0, 0]).map((cd) =>
-          Math.max(0, cd - 1)
-        );
       }
 
       const nextZ: ZoneMap = {
@@ -4681,10 +4632,10 @@ export default function App() {
         tile.used = true;
         if (tile.kind === 'spore_pool') {
           if (nextP.attributes.agility >= 3) {
-            nextP.glyphDust += 3;
+            nextP.gold += 6;
             soundEngine.playLoot();
-            spawnFloating(tx, ty, '+3 DUST', '#34D399');
-            pushLog('Deftly skirted the spore pool and harvested +3 Glyph Dust.', 'loot');
+            spawnFloating(tx, ty, '+6 GOLD', '#34D399');
+            pushLog('Deftly skirted the spore pool and harvested +6 Gold.', 'loot');
           } else {
             const dmg = 3 + nextZ.depth;
             nextP.hp -= dmg;
@@ -4697,10 +4648,10 @@ export default function App() {
           }
         } else if (tile.kind === 'frost_vent') {
           if (nextP.attributes.agility >= 3 || nextP.attributes.resolve >= 3) {
-            nextP.glyphDust += 3;
+            nextP.gold += 6;
             soundEngine.playLoot();
-            spawnFloating(tx, ty, '+3 DUST', '#60A5FA');
-            pushLog('Navigated the rime vent cleanly and recovered +3 Glyph Dust.', 'loot');
+            spawnFloating(tx, ty, '+6 GOLD', '#60A5FA');
+            pushLog('Navigated the rime vent cleanly and recovered +6 Gold.', 'loot');
           } else {
             const dmg = 3 + nextZ.depth;
             nextP.hp -= dmg;
@@ -4713,10 +4664,10 @@ export default function App() {
           }
         } else if (tile.kind === 'ember_crust') {
           if (nextP.attributes.resolve >= 3) {
-            nextP.glyphDust += 4;
+            nextP.gold += 8;
             soundEngine.playLoot();
-            spawnFloating(tx, ty, '+4 DUST', '#FB923C');
-            pushLog('Endured the ember crust and quenched +4 Glyph Dust.', 'loot');
+            spawnFloating(tx, ty, '+8 GOLD', '#FB923C');
+            pushLog('Endured the ember crust and quenched +8 Gold.', 'loot');
           } else {
             const dmg = 4 + nextZ.depth;
             nextP.hp -= dmg;
@@ -4731,10 +4682,10 @@ export default function App() {
           if (nextP.attributes.arcana >= 3) {
             const dStats = computeDerivedStats(nextP, worldFlags);
             nextP.mana = Math.min(dStats.maxMana, nextP.mana + 6);
-            nextP.glyphDust += 4;
+            nextP.gold += 8;
             soundEngine.playSpell();
-            spawnFloating(tx, ty, '+6 MP +4 DUST', '#C084FC');
-            pushLog('Your Arcana siphoned the shock rune (+6 Mana, +4 Glyph Dust)!', 'arcane');
+            spawnFloating(tx, ty, '+6 MP +8 GOLD', '#C084FC');
+            pushLog('Your Arcana siphoned the shock rune (+6 Mana, +8 Gold)!', 'arcane');
           } else {
             const dmg = 4 + nextZ.depth;
             const drain = Math.min(nextP.mana, 4);
@@ -4891,7 +4842,6 @@ export default function App() {
         return;
       }
       soundEngine.playClick();
-      setArmedInscriptionSlot(null);
       if (armedSkill === skillId) {
         setArmedSkill(null);
         setAimedTarget(null);
@@ -4924,191 +4874,6 @@ export default function App() {
     executeSkill(armedSkill, aimedTarget.x, aimedTarget.y);
   }, [aimedTarget, armedSkill, executeSkill]);
 
-  // Execute Inscription (Runes & Infusions)
-  const executeInscription = useCallback(
-    (slotIdx: number, targetX?: number, targetY?: number) => {
-      const insc = (player.inscriptions ?? [null, null, null])[slotIdx];
-      if (!insc || !insc.inscriptionKind) return;
-      const cd = (player.inscriptionCooldowns ?? [0, 0, 0])[slotIdx] ?? 0;
-      if (cd > 0) {
-        pushLog(`${insc.name} is recharging (${cd}t).`, 'neutral');
-        return;
-      }
-
-      let activeFlags: WorldFlags = worldFlags;
-      let victoryTriggered = false;
-      const kind = insc.inscriptionKind;
-      const power = insc.inscriptionPower ?? INSCRIPTION_META[kind].basePower;
-      const maxCd = insc.inscriptionCooldown ?? INSCRIPTION_META[kind].baseCd;
-      const nextCds = [...(player.inscriptionCooldowns ?? [0, 0, 0])];
-      nextCds[slotIdx] = maxCd;
-
-      let nextP: PlayerState = {
-        ...player,
-        inscriptionCooldowns: nextCds,
-        cooldowns: { ...player.cooldowns },
-      };
-
-      // Arcane Conduit reduces all other cooldowns when using a Rune
-      if (insc.inscriptionCategory === 'rune' && hasProdigy(nextP, 'arcane_conduit')) {
-        for (const k of Object.keys(nextP.cooldowns) as SkillId[]) {
-          if ((nextP.cooldowns[k] ?? 0) > 0) {
-            nextP.cooldowns[k] = Math.max(0, (nextP.cooldowns[k] ?? 0) - 1);
-          }
-        }
-        nextP.inscriptionCooldowns = nextP.inscriptionCooldowns!.map((c, idx) =>
-          idx === slotIdx ? c : Math.max(0, c - 1)
-        );
-      }
-
-      const nextZ: ZoneMap = {
-        ...currentZone,
-        enemies: currentZone.enemies.map((e) => ({
-          ...e,
-          statuses: e.statuses.map((s) => ({ ...s })),
-        })),
-        loot: [...currentZone.loot],
-      };
-      const dStats = computeDerivedStats(nextP, activeFlags);
-
-      if (kind === 'shielding_rune') {
-        applyStatus(nextP.statuses, 'shielded', 4, power);
-        soundEngine.playSpell();
-        spawnBurst(nextP.x, nextP.y, '#60A5FA', '◊', 7);
-        spawnFloating(nextP.x, nextP.y, `+${power} RUNE WARD`, '#60A5FA');
-        pushLog(`Shielding Rune activates (+${power} DEF for 4 turns).`, 'arcane');
-      } else if (kind === 'phase_door_rune') {
-        const maxRange = Math.min(7, 5 + Math.floor(power / 6));
-        if (targetX === undefined || targetY === undefined) return;
-        const dist = chebyshev(nextP.x, nextP.y, targetX, targetY);
-        const tile = nextZ.tiles[targetY]?.[targetX];
-        const occupied = nextZ.enemies.some((e) => e.x === targetX && e.y === targetY);
-        if (!tile?.walkable || !tile.visible || occupied || dist === 0 || dist > maxRange) {
-          pushLog(`Choose an unoccupied visible tile within range ${maxRange}.`, 'neutral');
-          return;
-        }
-        nextP.x = targetX;
-        nextP.y = targetY;
-        soundEngine.playSpell();
-        spawnBurst(targetX, targetY, '#60A5FA', '◈', 8);
-        spawnFloating(targetX, targetY, 'PHASED', '#60A5FA');
-        pushLog('Phase Door Rune warps you across space!', 'arcane');
-      } else if (kind === 'manasurge_rune') {
-        nextP.mana = Math.min(dStats.maxMana, nextP.mana + power);
-        soundEngine.playSpell();
-        spawnBurst(nextP.x, nextP.y, '#60A5FA', '✦', 7);
-        spawnFloating(nextP.x, nextP.y, `+${power} MP`, '#60A5FA');
-        pushLog(`Manasurge Rune restores +${power} Mana!`, 'arcane');
-      } else if (kind === 'biting_gale_rune') {
-        const blastDmg = power + Math.round(dStats.spellPower * 0.6);
-        soundEngine.playSpell();
-        spawnBurst(nextP.x, nextP.y, '#93C5FD', '❄', 10);
-        let hits = 0;
-        const deadList: Enemy[] = [];
-        for (const enemy of nextZ.enemies) {
-          if (chebyshev(nextP.x, nextP.y, enemy.x, enemy.y) <= 2) {
-            hits += 1;
-            enemy.hp -= blastDmg;
-            applyStatus(enemy.statuses, 'chilled', 3, 1);
-            spawnHitFlash(enemy.x, enemy.y, '#93C5FD', 140);
-            spawnFloating(enemy.x, enemy.y, `-${blastDmg} GALE`, '#93C5FD');
-            if (enemy.hp <= 0) deadList.push(enemy);
-          }
-        }
-        for (const d of deadList) {
-          const res = handleEnemyDeath(d, nextP, nextZ, activeFlags);
-          nextP = res.nextPlayer;
-          nextZ.enemies = res.nextZone.enemies;
-          nextZ.loot = res.nextZone.loot;
-          activeFlags = res.nextFlags;
-          if (res.victoryTriggered) victoryTriggered = true;
-        }
-        pushLog(
-          hits > 0 ? `Biting Gale Rune chills ${hits} foe(s) for ${blastDmg} dmg!` : 'Biting Gale sweeps the stone.',
-          'arcane'
-        );
-      } else if (kind === 'regeneration_infusion') {
-        nextP.hp = Math.min(dStats.maxHp, nextP.hp + power);
-        applyStatus(nextP.statuses, 'regen', 4, power);
-        soundEngine.playHeal();
-        spawnBurst(nextP.x, nextP.y, '#4EA885', '✿', 7);
-        spawnFloating(nextP.x, nextP.y, `+${power} REGEN`, '#4EA885');
-        pushLog(`Regeneration Infusion mends +${power} HP and +${power}/t (4t).`, 'loot');
-      } else if (kind === 'wild_infusion') {
-        nextP.statuses = nextP.statuses.filter(
-          (s) => s.kind !== 'bleed' && s.kind !== 'burn' && s.kind !== 'poison' && s.kind !== 'chilled'
-        );
-        applyStatus(nextP.statuses, 'shielded', 3, power);
-        soundEngine.playHeal();
-        spawnBurst(nextP.x, nextP.y, '#4EA885', '♣', 7);
-        spawnFloating(nextP.x, nextP.y, `CLEANSED +${power}`, '#4EA885');
-        pushLog(`Wild Infusion purges ailments and grants +${power} DEF (3t).`, 'loot');
-      } else if (kind === 'movement_infusion') {
-        nextP.hasteSteps = (nextP.hasteSteps ?? 0) + 2;
-        applyStatus(nextP.statuses, 'hasted', 2, 1);
-        soundEngine.playSpell();
-        spawnBurst(nextP.x, nextP.y, '#4EA885', '»', 6);
-        spawnFloating(nextP.x, nextP.y, '2 FREE STEPS!', '#4EA885');
-        pushLog('Movement Infusion activated: next 2 steps take 0 enemy turns!', 'arcane');
-        setArmedInscriptionSlot(null);
-        setAimedTarget(null);
-        setPlayer(nextP);
-        setZones((prev) => ({ ...prev, [nextZ.id]: nextZ }));
-        return;
-      } else if (kind === 'heroism_infusion') {
-        const shieldDef = Math.max(4, Math.round(power * 0.6));
-        nextP.hp = Math.min(dStats.maxHp, nextP.hp + power);
-        applyStatus(nextP.statuses, 'shielded', 4, shieldDef);
-        soundEngine.playHeal();
-        spawnBurst(nextP.x, nextP.y, '#FBBF24', '★', 7);
-        spawnFloating(nextP.x, nextP.y, `+${power} HP +${shieldDef} DEF`, '#FBBF24');
-        pushLog(`Heroism Infusion bolsters +${power} HP and +${shieldDef} DEF (4t).`, 'combat');
-      }
-
-      setArmedInscriptionSlot(null);
-      setAimedTarget(null);
-      if (victoryTriggered) {
-        setPlayer(nextP);
-        setZones((prev) => ({ ...prev, [nextZ.id]: nextZ }));
-        setGameState('VICTORY');
-        return;
-      }
-      runEnemyTurns(nextP, nextZ, activeFlags);
-    },
-    [
-      currentZone,
-      handleEnemyDeath,
-      player,
-      pushLog,
-      runEnemyTurns,
-      spawnBurst,
-      spawnFloating,
-      spawnHitFlash,
-      worldFlags,
-    ]
-  );
-
-  const handleTriggerInscription = useCallback(
-    (slotIdx: number) => {
-      const insc = (player.inscriptions ?? [null, null, null])[slotIdx];
-      if (!insc || !insc.inscriptionKind) return;
-      const cd = (player.inscriptionCooldowns ?? [0, 0, 0])[slotIdx] ?? 0;
-      if (cd > 0) {
-        pushLog(`${insc.name} is recharging (${cd}t).`, 'neutral');
-        return;
-      }
-      setArmedSkill(null);
-      setAimedTarget(null);
-      if (insc.inscriptionKind === 'phase_door_rune') {
-        soundEngine.playClick();
-        setArmedInscriptionSlot((prev) => (prev === slotIdx ? null : slotIdx));
-        return;
-      }
-      executeInscription(slotIdx);
-    },
-    [executeInscription, player.inscriptionCooldowns, player.inscriptions, pushLog]
-  );
-
   const handleSafeRest = useCallback(() => {
     if (gameState !== 'PLAYING' || activePanel !== 'NONE' || specialPrompt) return;
     setAutoExploring(false);
@@ -5133,8 +4898,7 @@ export default function App() {
 
     const d = computeDerivedStats(player, worldFlags);
     const maxSkillCd = Math.max(0, ...Object.values(player.cooldowns).map((v) => v ?? 0));
-    const maxInscCd = Math.max(0, ...(player.inscriptionCooldowns ?? [0, 0, 0]));
-    const restTurns = Math.max(1, Math.min(12, Math.max(maxSkillCd, maxInscCd, 2)));
+    const restTurns = Math.max(1, Math.min(12, Math.max(maxSkillCd, 2)));
 
     const nextProdCds: Partial<Record<ProdigyId, number>> = {};
     for (const [k, v] of Object.entries(player.prodigyCooldowns ?? {})) {
@@ -5147,7 +4911,6 @@ export default function App() {
       hp: d.maxHp,
       mana: d.maxMana,
       cooldowns: {},
-      inscriptionCooldowns: [0, 0, 0],
       prodigyCooldowns: nextProdCds,
       statuses: [],
       hasteSteps: 0,
@@ -5171,7 +4934,7 @@ export default function App() {
     spawnFloating(player.x, player.y, 'RESTED', '#4EA885');
     const cauterizeRem = nextProdCds.cauterize ?? 0;
     pushLog(
-      `Rested safely (${restTurns}t): HP, Mana, Skills, and Inscriptions restored.${
+      `Rested safely (${restTurns}t): HP, Mana, and Skills restored.${
         cauterizeRem > 0 ? ` (Cauterize cooldown: ${cauterizeRem}t)` : ''
       }`,
       'arcane',
@@ -5196,7 +4959,6 @@ export default function App() {
     }
     soundEngine.playClick();
     setArmedSkill(null);
-    setArmedInscriptionSlot(null);
     setAimedTarget(null);
     setAutoExploring(true);
   }, [activePanel, autoExploring, currentZone, gameState, pushLog, specialPrompt]);
@@ -5312,11 +5074,6 @@ export default function App() {
       if (gameState !== 'PLAYING' || activePanel !== 'NONE' || specialPrompt) return;
       setAutoExploring(false);
 
-      if (armedInscriptionSlot !== null) {
-        executeInscription(armedInscriptionSlot, tx, ty);
-        return;
-      }
-
       if (armedSkill) {
         executeSkill(armedSkill, tx, ty);
         return;
@@ -5341,11 +5098,9 @@ export default function App() {
     },
     [
       activePanel,
-      armedInscriptionSlot,
       armedSkill,
       attemptStep,
       currentZone,
-      executeInscription,
       executeSkill,
       gameState,
       interactWithTile,
@@ -5402,9 +5157,6 @@ export default function App() {
             nextP.companion?.y ?? nextP.y,
             nextP.level
           );
-          if (nextP.companion?.stance) {
-            fresh.stance = nextP.companion.stance;
-          }
           nextP.companion = fresh;
           const d = computeDerivedStats(nextP, nextFlags);
           nextP.maxHp = d.maxHp;
@@ -5635,27 +5387,11 @@ export default function App() {
     [attemptStep, currentZone, interactWithTile, openNpcDialogue, player]
   );
 
-  const handleCycleCompanionStance = useCallback(() => {
-    if (!player.companion) return;
-    const order: CompanionState['stance'][] = ['aggressive', 'guard', 'recall'];
-    const curIdx = order.indexOf(player.companion.stance);
-    const nextStance = order[(curIdx + 1) % order.length];
-    soundEngine.playCompanion();
-    setPlayer((prev) =>
-      prev.companion ? { ...prev, companion: { ...prev.companion, stance: nextStance } } : prev
-    );
-    pushLog(
-      `${player.companion.name} stance set to ${nextStance.toUpperCase()}.`,
-      'quest'
-    );
-  }, [player.companion, pushLog]);
-
   // Global Keyboard Shortcuts
   const stateKeysRef = useRef({
     gameState,
     activePanel,
     armedSkill,
-    armedInscriptionSlot,
     aimedTarget,
     autoExploring,
     specialPrompt,
@@ -5667,7 +5403,6 @@ export default function App() {
     handleCameraYawChange,
     handleCycleViewMode,
     handleTriggerHotbar,
-    handleTriggerInscription,
     handleQuickHeal,
     handleToggleAutoExplore,
     handleSafeRest,
@@ -5681,8 +5416,7 @@ export default function App() {
       gameState,
       activePanel,
       armedSkill,
-      armedInscriptionSlot,
-      aimedTarget,
+        aimedTarget,
       autoExploring,
       specialPrompt,
       showHallOfFame,
@@ -5693,8 +5427,7 @@ export default function App() {
       handleCameraYawChange,
       handleCycleViewMode,
       handleTriggerHotbar,
-      handleTriggerInscription,
-      handleQuickHeal,
+        handleQuickHeal,
       handleToggleAutoExplore,
       handleSafeRest,
       handleInteractAction,
@@ -5705,7 +5438,6 @@ export default function App() {
     gameState,
     activePanel,
     armedSkill,
-    armedInscriptionSlot,
     aimedTarget,
     autoExploring,
     specialPrompt,
@@ -5717,7 +5449,6 @@ export default function App() {
     handleCameraYawChange,
     handleCycleViewMode,
     handleTriggerHotbar,
-    handleTriggerInscription,
     handleQuickHeal,
     handleToggleAutoExplore,
     handleSafeRest,
@@ -5765,11 +5496,6 @@ export default function App() {
           setAimedTarget(null);
           return;
         }
-        if (s.armedInscriptionSlot !== null) {
-          setArmedInscriptionSlot(null);
-          setAimedTarget(null);
-          return;
-        }
         setGameState((cur) => (cur === 'PLAYING' ? 'PAUSED' : cur === 'PAUSED' ? 'PLAYING' : cur));
         return;
       }
@@ -5801,13 +5527,6 @@ export default function App() {
         s.handleTriggerHotbar(Number(e.key) - 1);
         return;
       }
-      if (['6', '7', '8'].includes(e.key)) {
-        e.preventDefault();
-        setAutoExploring(false);
-        s.handleTriggerInscription(Number(e.key) - 6);
-        return;
-      }
-
       if (e.key === '[') {
         e.preventDefault();
         s.handleCameraYawChange(normalizeYawIndex(s.cameraYawIndex - 1));
@@ -5974,18 +5693,13 @@ export default function App() {
           setAimedTarget(null);
           return;
         }
-        if (s.armedInscriptionSlot !== null) {
-          setArmedInscriptionSlot(null);
-          setAimedTarget(null);
-          return;
-        }
         setGameState((cur) => (cur === 'PLAYING' ? 'PAUSED' : cur === 'PAUSED' ? 'PLAYING' : cur));
         return;
       }
 
       if (action === 'pause') {
         // Start only toggles pause; closing panels/prompts is B's job.
-        if (!s.specialPrompt && s.activePanel === 'NONE' && !s.armedSkill && s.armedInscriptionSlot === null) {
+        if (!s.specialPrompt && s.activePanel === 'NONE' && !s.armedSkill) {
           setGameState((cur) => (cur === 'PLAYING' ? 'PAUSED' : cur === 'PAUSED' ? 'PLAYING' : cur));
         }
         return;
@@ -6139,7 +5853,7 @@ export default function App() {
     setPlayer((prev) => {
       const next: PlayerState = {
         ...prev,
-        prodigyPoints: Math.max(0, (prev.prodigyPoints ?? 0) - 1),
+        skillPoints: Math.max(0, prev.skillPoints - PRODIGY_SKILL_COST),
         prodigies: [...(prev.prodigies ?? []), prodigyId],
       };
       const d = computeDerivedStats(next, worldFlags);
@@ -6149,29 +5863,7 @@ export default function App() {
       next.hp = Math.min(d.maxHp, next.hp + hpDiff);
       return next;
     });
-    pushLog(`Claimed Milestone Prodigy: ${PRODIGIES[prodigyId].name}!`, 'arcane');
-  };
-
-  const handleEquipInscription = (itemId: string, slotIdx: number) => {
-    const item = player.inventory.find((i) => i.id === itemId && i.category === 'inscription');
-    if (!item || slotIdx < 0 || slotIdx > 2) return;
-    soundEngine.playSpell();
-    setPlayer((prev) => {
-      const curInscriptions = [...(prev.inscriptions ?? [null, null, null])];
-      const curCds = [...(prev.inscriptionCooldowns ?? [0, 0, 0])];
-      const prevSlotted = curInscriptions[slotIdx];
-      const nextInv = prev.inventory.filter((i) => i.id !== itemId);
-      if (prevSlotted) nextInv.push(prevSlotted);
-      curInscriptions[slotIdx] = item;
-      curCds[slotIdx] = Math.max(curCds[slotIdx] ?? 0, 3);
-      return {
-        ...prev,
-        inscriptions: curInscriptions,
-        inscriptionCooldowns: curCds,
-        inventory: nextInv,
-      };
-    });
-    pushLog(`Engraved ${item.name} into Inscription Slot [${slotIdx + 6}] (3t attunement).`, 'arcane');
+    pushLog(`Claimed Capstone: ${PRODIGIES[prodigyId].name}!`, 'arcane');
   };
 
   const handleEquipItem = (itemId: string) => {
@@ -6231,28 +5923,28 @@ export default function App() {
   const handleSalvageItem = (itemId: string) => {
     const item = player.inventory.find((i) => i.id === itemId);
     if (!item || item.category !== 'equipment') return;
-    const dust = getSalvageDustYield(item);
+    const gold = getSalvageGoldYield(item);
     soundEngine.playClick();
     setPlayer((prev) => ({
       ...prev,
-      glyphDust: prev.glyphDust + dust,
+      gold: prev.gold + gold,
       inventory: prev.inventory.filter((i) => i.id !== itemId),
     }));
-    pushLog(`Salvaged ${item.name} into +${dust} Glyph Dust.`, 'loot');
+    pushLog(`Salvaged ${item.name} into +${gold} Gold.`, 'loot');
   };
 
   const handleSalvageCommon = () => {
     const commons = player.inventory.filter((i) => i.category === 'equipment' && i.rarity === 'Common');
     if (commons.length === 0) return;
-    const totalDust = commons.reduce((sum, item) => sum + getSalvageDustYield(item), 0);
+    const totalGold = commons.reduce((sum, item) => sum + getSalvageGoldYield(item), 0);
     const ids = new Set(commons.map((i) => i.id));
     soundEngine.playClick();
     setPlayer((prev) => ({
       ...prev,
-      glyphDust: prev.glyphDust + totalDust,
+      gold: prev.gold + totalGold,
       inventory: prev.inventory.filter((i) => !ids.has(i.id)),
     }));
-    pushLog(`Salvaged ${commons.length} Common gear piece${commons.length === 1 ? '' : 's'} into +${totalDust} Glyph Dust.`, 'loot');
+    pushLog(`Salvaged ${commons.length} Common gear piece${commons.length === 1 ? '' : 's'} into +${totalGold} Gold.`, 'loot');
   };
 
   const handleBuyItem = (itemId: string) => {
@@ -6300,8 +5992,7 @@ export default function App() {
     if (!target || target.upgradeLevel >= maxUpgrade) return;
     const discount = smithyLv >= 1 ? 0.75 : 1;
     const goldCost = Math.max(8, Math.round((25 + target.upgradeLevel * 25) * discount));
-    const dustCost = Math.max(3, Math.round((8 + target.upgradeLevel * 8) * discount));
-    if (player.gold < goldCost || player.glyphDust < dustCost) return;
+    if (player.gold < goldCost) return;
 
     const upgraded = upgradeEquipmentItem(target);
     soundEngine.playLevelUp();
@@ -6309,7 +6000,6 @@ export default function App() {
       const next: PlayerState = {
         ...prev,
         gold: prev.gold - goldCost,
-        glyphDust: prev.glyphDust - dustCost,
       };
       if (isEquipped && target.slot) {
         next.equipped = { ...prev.equipped, [target.slot]: upgraded };
@@ -6326,77 +6016,6 @@ export default function App() {
     pushLog(`Tempered ${upgraded.name}!`, 'arcane');
   };
 
-  const handleEnchantItem = (itemId: string, isEquipped: boolean, runeId: RuneEnchantId) => {
-    const target = isEquipped
-      ? Object.values(player.equipped).find((i) => i?.id === itemId)
-      : player.inventory.find((i) => i.id === itemId);
-    if (!target || target.category !== 'equipment') return;
-    if (target.runeEnchant?.id === runeId) return;
-
-    const smithyLv = worldFlags.townUpgrades?.smithy ?? 0;
-    const discount = smithyLv >= 1 ? 0.75 : 1;
-    const goldCost = Math.max(10, Math.round(30 * discount));
-    const dustCost = Math.max(4, Math.round(10 * discount));
-    if (player.gold < goldCost || player.glyphDust < dustCost) return;
-
-    const enchanted = enchantEquipmentItem(target, runeId);
-    soundEngine.playRuneforge();
-
-    let next: PlayerState = {
-      ...player,
-      gold: player.gold - goldCost,
-      glyphDust: player.glyphDust - dustCost,
-    };
-    if (isEquipped && target.slot) {
-      next.equipped = { ...player.equipped, [target.slot]: enchanted };
-    } else {
-      next.inventory = player.inventory.map((i) => (i.id === itemId ? enchanted : i));
-    }
-    const d = computeDerivedStats(next, worldFlags);
-    next.maxHp = d.maxHp;
-    next.maxMana = d.maxMana;
-    next.hp = Math.min(next.hp, d.maxHp);
-    next.mana = Math.min(next.mana, d.maxMana);
-    const featRes = evaluateFeatsAndApply(next, worldFlags, next.turnsElapsed);
-    next = featRes.nextPlayer;
-    if (featRes.nextFlags !== worldFlags) {
-      setWorldFlags(featRes.nextFlags);
-    }
-    setPlayer(next);
-    pushLog(`Etched ${RUNE_ENCHANTS[runeId].label} onto ${enchanted.name}.`, 'arcane');
-  };
-
-  const handleRerollAffix = (itemId: string, isEquipped: boolean) => {
-    const target = isEquipped
-      ? Object.values(player.equipped).find((i) => i?.id === itemId)
-      : player.inventory.find((i) => i.id === itemId);
-    if (!target || target.category !== 'equipment') return;
-    if (target.rarity !== 'Rare' && target.rarity !== 'Epic' && target.rarity !== 'Relic') return;
-
-    const smithyLv = worldFlags.townUpgrades?.smithy ?? 0;
-    const discount = smithyLv >= 1 ? 0.75 : 1;
-    const goldCost = Math.max(10, Math.round(25 * discount));
-    const dustCost = Math.max(4, Math.round(8 * discount));
-    if (player.gold < goldCost || player.glyphDust < dustCost) return;
-
-    const reforged = rerollEquipmentAffix(target);
-    soundEngine.playRuneforge();
-    setPlayer((prev) => {
-      const next: PlayerState = {
-        ...prev,
-        gold: prev.gold - goldCost,
-        glyphDust: prev.glyphDust - dustCost,
-      };
-      if (isEquipped && target.slot) {
-        next.equipped = { ...prev.equipped, [target.slot]: reforged };
-      } else {
-        next.inventory = prev.inventory.map((i) => (i.id === itemId ? reforged : i));
-      }
-      return next;
-    });
-    pushLog(`Reforged ${reforged.name}: ${reforged.affixLabel}`, 'arcane');
-  };
-
   const handlePurchaseUpgrade = (upgradeId: 'apothecary' | 'smithy' | 'watchtower') => {
     const def = TOWN_UPGRADE_DEFS.find((d) => d.id === upgradeId);
     if (!def) return;
@@ -6408,13 +6027,12 @@ export default function App() {
     const curLv = currentUpgrades[upgradeId] ?? 0;
     if (curLv >= def.maxLevel) return;
     const spec = def.levels[curLv];
-    if (!spec || player.gold < spec.gold || player.glyphDust < spec.dust) return;
+    if (!spec || player.gold < spec.gold) return;
 
     soundEngine.playLevelUp();
     let nextP: PlayerState = {
       ...player,
       gold: player.gold - spec.gold,
-      glyphDust: player.glyphDust - spec.dust,
     };
     let nextFlags: WorldFlags = {
       ...worldFlags,
@@ -6495,15 +6113,6 @@ export default function App() {
   const activeNode = activeNpc && activeDialogue ? activeNpc.nodes[activeDialogue.nodeId] : null;
   const activeMerchantNpc = activeMerchantId ? NPCS[activeMerchantId] : null;
 
-  const armedInsc =
-    armedInscriptionSlot !== null
-      ? (player.inscriptions ?? [null, null, null])[armedInscriptionSlot]
-      : null;
-  const armedInscriptionRange =
-    armedInsc?.inscriptionKind === 'phase_door_rune'
-      ? Math.min(7, 5 + Math.floor((armedInsc.inscriptionPower ?? 6) / 6))
-      : null;
-
   return (
     <div className="w-screen h-[100dvh] overflow-hidden bg-[#090B10] text-[#ECE4D4] flex flex-col">
       <TopHud
@@ -6519,7 +6128,6 @@ export default function App() {
         onOpenPanel={(p) => {
           soundEngine.playClick();
           setArmedSkill(null);
-          setArmedInscriptionSlot(null);
           setAimedTarget(null);
           setAutoExploring(false);
           setActivePanel(p);
@@ -6537,7 +6145,6 @@ export default function App() {
           zone={currentZone}
           player={player}
           armedSkill={armedSkill}
-          armedInscriptionRange={armedInscriptionRange}
           aimedTarget={aimedTarget}
           floatingEffects={floatingEffects}
           particles={particles}
@@ -6548,6 +6155,7 @@ export default function App() {
           patternSignals={settings.patternSignals}
           cameraYawIndex={cameraYawIndex}
           viewMode={viewMode}
+          questNpcNames={questNpcNames}
           onCameraYawChange={handleCameraYawChange}
           onViewModeChange={handleViewModeChange}
           onTileSizeChange={handleTileSizeChange}
@@ -6558,7 +6166,6 @@ export default function App() {
           }}
           onCancelTargeting={() => {
             setArmedSkill(null);
-            setArmedInscriptionSlot(null);
             setAimedTarget(null);
           }}
         />
@@ -6587,7 +6194,7 @@ export default function App() {
         )}
 
         {/* Non-Blocking Zone Arrival Context Banner */}
-        {zoneBanner && !armedSkill && armedInscriptionRange === null && !specialPrompt && (
+        {zoneBanner && !armedSkill && !specialPrompt && (
           <button
             type="button"
             onClick={() => setZoneBanner(null)}
@@ -6604,9 +6211,6 @@ export default function App() {
                     {zoneBanner.subtitle} · {zoneBanner.recommended}
                   </span>
                 </div>
-                <p className="text-[11px] sm:text-xs text-slate-300 mt-0.5 leading-snug">
-                  {zoneBanner.lore}
-                </p>
                 <p className="text-[11px] text-amber-300/90 mt-1 leading-snug">
                   {zoneBanner.tactical}
                 </p>
@@ -6764,20 +6368,17 @@ export default function App() {
       <ActionDock
         player={player}
         armedSkill={armedSkill}
-        armedInscriptionSlot={armedInscriptionSlot}
         autoExploring={autoExploring}
         canCycleTarget={Boolean(armedSkill && getInRangeEnemies(armedSkill).length > 1)}
         hasAimedTarget={Boolean(aimedTarget)}
         logs={logs}
         onTriggerHotbar={handleTriggerHotbar}
-        onTriggerInscription={handleTriggerInscription}
         onQuickHeal={handleQuickHeal}
         onToggleAutoExplore={handleToggleAutoExplore}
         onSafeRest={handleSafeRest}
         onWaitTurn={() => attemptStep(0, 0)}
         onCycleTarget={handleCycleTarget}
         onConfirmAimedTarget={handleConfirmAimedTarget}
-        onCycleCompanionStance={handleCycleCompanionStance}
       />
 
       {/* Modals */}
@@ -6799,7 +6400,6 @@ export default function App() {
           derived={derived}
           onEquipItem={handleEquipItem}
           onUnequipItem={handleUnequipItem}
-          onEquipInscription={handleEquipInscription}
           onUseConsumable={handleUseConsumable}
           onSalvageItem={handleSalvageItem}
           onSalvageCommon={handleSalvageCommon}
@@ -6831,8 +6431,6 @@ export default function App() {
           onBuyItem={handleBuyItem}
           onSellItem={handleSellItem}
           onUpgradeItem={handleUpgradeItem}
-          onEnchantItem={handleEnchantItem}
-          onRerollAffix={handleRerollAffix}
           onOpenTownUpgrades={() => {
             setActiveMerchantId(null);
             setActivePanel('UPGRADES');
@@ -6857,6 +6455,11 @@ export default function App() {
         <QuestJournalModal
           quests={quests}
           worldFlags={worldFlags}
+          zoneBrief={{
+            name: zones[currentZoneId].name,
+            subtitle: zones[currentZoneId].subtitle,
+            ...getZoneContext(currentZoneId, zones[currentZoneId].depth),
+          }}
           onClose={() => setActivePanel('NONE')}
         />
       )}

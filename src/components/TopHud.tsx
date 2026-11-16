@@ -23,7 +23,7 @@ export const TopHud: React.FC<TopHudProps> = ({
 }) => {
   const hpPct = Math.max(0, Math.min(100, (player.hp / derived.maxHp) * 100));
   const mpPct = Math.max(0, Math.min(100, (player.mana / derived.maxMana) * 100));
-  const totalPts = player.attributePoints + player.skillPoints + (player.prodigyPoints ?? 0);
+  const totalPts = player.attributePoints + player.skillPoints;
   const hasPoints = totalPts > 0;
 
   return (
@@ -35,10 +35,6 @@ export const TopHud: React.FC<TopHudProps> = ({
         </span>
         <span className="xl:hidden text-[11px] font-mono-glyph text-slate-300 whitespace-nowrap tabular-nums">
           Lv {player.level} · <span className="text-amber-300">{player.gold}g</span>
-        </span>
-        <span className="text-slate-600 hidden xl:inline" aria-hidden="true">·</span>
-        <span className="text-xs text-slate-400 whitespace-nowrap hidden xl:inline truncate">
-          {zone.subtitle}
         </span>
       </div>
 
@@ -74,11 +70,7 @@ export const TopHud: React.FC<TopHudProps> = ({
 
         {/* Level, Build Title & Gold */}
         <div className="hidden xl:flex items-center gap-2 text-xs text-slate-300 font-mono-glyph tabular-nums">
-          <span className="font-sans font-medium text-[#ECE4D4]">{player.name}</span>
-          <span className="text-slate-600">·</span>
           <span className="text-amber-300">Lv {player.level}</span>
-          <span className="text-slate-600">·</span>
-          <span className="font-sans text-slate-300">{derived.buildTitle}</span>
           <span className="text-slate-600">·</span>
           <span className="text-amber-400">{player.gold}g</span>
         </div>
@@ -98,7 +90,7 @@ export const TopHud: React.FC<TopHudProps> = ({
               : 'text-slate-200 hover:bg-white/8 border border-white/10'
           }`}
         >
-          Skills<span className="hidden sm:inline"> [K]</span>{hasPoints ? ` (${totalPts})` : ''}
+          Skills{hasPoints ? ` (${totalPts})` : ''}
         </button>
 
         <button
@@ -109,7 +101,7 @@ export const TopHud: React.FC<TopHudProps> = ({
           }}
           className="min-h-[44px] lg:min-h-0 px-2.5 py-1 rounded text-[11px] sm:text-xs font-medium text-slate-200 hover:bg-white/8 border border-white/10 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
         >
-          Pack<span className="hidden sm:inline"> [I]</span>
+          Pack
         </button>
 
         <button
@@ -120,7 +112,7 @@ export const TopHud: React.FC<TopHudProps> = ({
           }}
           className="min-h-[44px] lg:min-h-0 px-2.5 py-1 rounded text-[11px] sm:text-xs font-medium text-slate-200 hover:bg-white/8 border border-white/10 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
         >
-          Quests<span className="hidden sm:inline"> [J]</span>
+          Quests
         </button>
 
         <button
@@ -131,7 +123,7 @@ export const TopHud: React.FC<TopHudProps> = ({
           }}
           className="min-h-[44px] lg:min-h-0 px-2.5 py-1 rounded text-[11px] sm:text-xs font-medium text-slate-200 hover:bg-white/8 border border-white/10 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
         >
-          Travel<span className="hidden sm:inline"> [M]</span>
+          Travel
         </button>
 
         <button
@@ -142,7 +134,7 @@ export const TopHud: React.FC<TopHudProps> = ({
           }}
           className="min-h-[44px] lg:min-h-0 px-2.5 py-1 rounded text-[11px] sm:text-xs font-medium text-slate-200 hover:bg-white/8 border border-white/10 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
         >
-          Guide<span className="hidden sm:inline"> [?]</span>
+          Guide
         </button>
 
         <button

@@ -1,4 +1,3 @@
-import { computeBestiaryPerks } from './codex';
 import { computeDerivedStats, SKILLS } from './skills';
 import { Enemy, EnemyIntent, PlayerState, StatusKind, Tile, WorldFlags, ZoneMap } from './types';
 
@@ -255,7 +254,6 @@ export function calculatePlayerHit(
   const isCrit = forceCrit || Math.random() * 100 < critChance;
   let dmg = rawPower * multiplier;
 
-  dmg *= computeBestiaryPerks(worldFlags).damageMultiplierVs(target.archetype);
 
   if (player.firstStrikeReady && hasAffix(player, 'first_strike')) {
     dmg *= 1.35;

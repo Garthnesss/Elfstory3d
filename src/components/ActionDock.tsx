@@ -5,49 +5,40 @@ import { LogEntry, PlayerState, SkillId } from '../game/types';
 interface ActionDockProps {
   player: PlayerState;
   armedSkill: SkillId | null;
-  armedInscriptionSlot: number | null;
   autoExploring: boolean;
   canCycleTarget?: boolean;
   hasAimedTarget?: boolean;
   logs: LogEntry[];
   onTriggerHotbar: (slotIdx: number) => void;
-  onTriggerInscription: (slotIdx: number) => void;
   onQuickHeal: () => void;
   onToggleAutoExplore: () => void;
   onSafeRest: () => void;
   onWaitTurn: () => void;
   onCycleTarget?: () => void;
   onConfirmAimedTarget?: () => void;
-  onCycleCompanionStance?: () => void;
 }
 
 export const ActionDock: React.FC<ActionDockProps> = ({
   player,
   armedSkill,
-  armedInscriptionSlot,
   autoExploring,
   canCycleTarget,
   hasAimedTarget,
   logs,
   onTriggerHotbar,
-  onTriggerInscription,
   onQuickHeal,
   onToggleAutoExplore,
   onSafeRest,
   onWaitTurn,
   onCycleTarget,
   onConfirmAimedTarget,
-  onCycleCompanionStance,
 }) => {
-  const [mobileDeck, setMobileDeck] = useState<'skills' | 'runes'>('skills');
   const [logExpanded, setLogExpanded] = useState(false);
 
   const healPotions = player.inventory
     .filter((i) => i.consumableKind === 'heal_potion')
     .reduce((sum, i) => sum + (i.quantity ?? 1), 0);
 
-  const inscriptions = player.inscriptions ?? [null, null, null];
-  const inscCds = player.inscriptionCooldowns ?? [0, 0, 0];
   const recentLogs = logs.slice(0, 3);
   const drawerLogs = logs.slice(0, 8);
 
@@ -70,6 +61,17 @@ export const ActionDock: React.FC<ActionDockProps> = ({
     }
   };
 
+  // Single chronicle line implementation (turn tag + text), shared by the
+  // phone ticker, the expandable drawer and the desktop rolling log.
+  const lineInner = (entry: LogEntry) => (
+    <>
+      <span className="font-mono-glyph text-[10px] text-slate-500 mr-1.5 tabular-nums">
+        T{entry.turn}
+      </span>
+      {entry.text}
+    </>
+  );
+
   return (
     <footer className="relative w-full bg-[#0D1017] border-t border-white/10 shrink-0 flex flex-col pb-[env(safe-area-inset-bottom)]">
       {/* Expandable Chronicle Drawer Overlay (< 2xl) */}
@@ -88,10 +90,7 @@ export const ActionDock: React.FC<ActionDockProps> = ({
           </div>
           {drawerLogs.map((entry) => (
             <div key={entry.id} className={`text-xs leading-snug ${toneColor(entry.tone)}`}>
-              <span className="font-mono-glyph text-[10px] text-slate-500 mr-1.5 tabular-nums">
-                T{entry.turn}
-              </span>
-              {entry.text}
+              {lineInner(entry)}
             </div>
           ))}
         </div>
@@ -105,11 +104,8 @@ export const ActionDock: React.FC<ActionDockProps> = ({
           aria-label="Toggle recent combat log"
           className="2xl:hidden w-full min-h-[44px] sm:min-h-0 text-left px-3 py-1.5 border-b border-white/8 bg-[#0A0D13] hover:bg-[#101520] text-[11px] flex items-center justify-between gap-2 cursor-pointer"
         >
-          <span className="truncate min-w-0">
-            <span className="font-mono-glyph text-[10px] text-slate-500 mr-1.5 tabular-nums">
-              T{recentLogs[0].turn}
-            </span>
-            <span className={toneColor(recentLogs[0].tone)}>{recentLogs[0].text}</span>
+          <span className={`truncate min-w-0 ${toneColor(recentLogs[0].tone)}`}>
+            {lineInner(recentLogs[0])}
           </span>
           <span className="text-[10px] font-mono-glyph text-slate-400 shrink-0">
             {logExpanded ? 'Hide' : 'Log'}
@@ -145,34 +141,8 @@ export const ActionDock: React.FC<ActionDockProps> = ({
           </div>
         )}
 
-        {/* Row 1: Skills / Runes Switcher + Full-Width Hotbar Slots */}
+        {/* Row 1: Full-Width Hotbar Slots */}
         <div className="flex items-stretch gap-1.5">
-          <div className="flex items-stretch gap-1 shrink-0">
-            <button
-              type="button"
-              onClick={() => setMobileDeck('skills')}
-              className={`min-h-[46px] min-w-[44px] px-2 py-1 rounded text-[11px] font-semibold leading-none cursor-pointer ${
-                mobileDeck === 'skills'
-                  ? 'bg-amber-500 text-[#0B0D12]'
-                  : 'bg-[#141923] text-slate-400 border border-white/10'
-              }`}
-            >
-              Skills
-            </button>
-            <button
-              type="button"
-              onClick={() => setMobileDeck('runes')}
-              className={`min-h-[46px] min-w-[44px] px-2 py-1 rounded text-[11px] font-semibold leading-none cursor-pointer ${
-                mobileDeck === 'runes'
-                  ? 'bg-sky-500 text-[#0B0D12]'
-                  : 'bg-[#141923] text-slate-400 border border-white/10'
-              }`}
-            >
-              Runes
-            </button>
-          </div>
-
-          {mobileDeck === 'skills' ? (
             <div className="flex-1 grid grid-cols-5 gap-1 min-w-0">
               {player.hotbar.map((skillId, idx) => {
                 const def = skillId ? SKILLS[skillId] : null;
@@ -215,54 +185,6 @@ export const ActionDock: React.FC<ActionDockProps> = ({
                 );
               })}
             </div>
-          ) : (
-            <div className="flex-1 grid grid-cols-3 gap-1.5 min-w-0">
-              {[0, 1, 2].map((slotIdx) => {
-                const item = inscriptions[slotIdx] ?? null;
-                const cd = inscCds[slotIdx] ?? 0;
-                const isRune = item?.inscriptionCategory === 'rune';
-                const isArmed = armedInscriptionSlot === slotIdx;
-                const usable = Boolean(item && cd === 0);
-
-                return (
-                  <button
-                    key={`m_inscr_${slotIdx}`}
-                    type="button"
-                    disabled={!item}
-                    onClick={(e) => {
-                      e.currentTarget.blur();
-                      onTriggerInscription(slotIdx);
-                    }}
-                    className={`min-h-[46px] px-2 py-1 rounded border text-left flex flex-col justify-between transition-colors cursor-pointer disabled:cursor-default ${
-                      !item
-                        ? 'border-white/5 bg-[#121620]/40 text-slate-600'
-                        : isArmed
-                          ? 'border-sky-400 bg-sky-500/20 text-sky-100'
-                          : usable
-                            ? isRune
-                              ? 'border-sky-400/25 bg-[#121926] text-[#ECE4D4]'
-                              : 'border-emerald-400/25 bg-[#121B1A] text-[#ECE4D4]'
-                            : 'border-white/10 bg-[#121620] text-slate-500'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between text-[10px] font-mono-glyph">
-                      <span className={isRune ? 'text-sky-300' : 'text-emerald-300'}>
-                        {item ? item.glyph : `[${slotIdx + 6}]`}
-                      </span>
-                      {item && (
-                        <span className="text-[9px] text-slate-400 tabular-nums">
-                          {cd > 0 ? `CD ${cd}` : isRune ? 'Rune' : 'Infus'}
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-[10px] font-medium truncate">
-                      {item ? item.name.replace(/^(Rare|Epic|Relic|Common)\s+/, '') : 'Open'}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
         </div>
 
         {/* Row 2: Always-Visible Quick Action Strip */}
@@ -320,26 +242,12 @@ export const ActionDock: React.FC<ActionDockProps> = ({
             <div className="text-[11px] font-medium leading-tight">Wait</div>
           </button>
 
-          {player.companion && onCycleCompanionStance && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.currentTarget.blur();
-                onCycleCompanionStance();
-              }}
-              className="min-h-[44px] px-1 py-1 rounded border border-sky-400/30 bg-[#121926] text-center text-sky-200 cursor-pointer"
-            >
-              <div className="text-[10px] font-medium leading-tight capitalize truncate">
-                {player.companion.stance}
-              </div>
-            </button>
-          )}
         </div>
       </div>
 
       {/* === DESKTOP / TABLET LAYOUT (md+): Unified Hotbar + Chronicle === */}
       <div className="hidden md:flex w-full px-3 py-2 items-center justify-between gap-3 overflow-x-auto rpg-scroll">
-        {/* Skill Hotbar + Inscriptions + Quick Utilities */}
+        {/* Skill Hotbar + Quick Utilities */}
         <div className="flex items-center gap-1.5 shrink-0">
           {player.hotbar.map((skillId, idx) => {
             const def = skillId ? SKILLS[skillId] : null;
@@ -385,53 +293,6 @@ export const ActionDock: React.FC<ActionDockProps> = ({
           })}
 
           <div className="h-8 w-px bg-white/10 mx-0.5" />
-
-          {/* 3 Cooldown Inscription Slots [6] [7] [8] */}
-          {[0, 1, 2].map((slotIdx) => {
-            const item = inscriptions[slotIdx] ?? null;
-            const cd = inscCds[slotIdx] ?? 0;
-            const isRune = item?.inscriptionCategory === 'rune';
-            const isArmed = armedInscriptionSlot === slotIdx;
-            const usable = Boolean(item && cd === 0);
-
-            return (
-              <button
-                key={`inscr_${slotIdx}`}
-                type="button"
-                disabled={!item}
-                onClick={(e) => {
-                  e.currentTarget.blur();
-                  onTriggerInscription(slotIdx);
-                }}
-                title={item ? `${item.name} — ${item.description}` : 'Empty Inscription Slot (Equip in Pack [I])'}
-                className={`relative px-2.5 py-1.5 rounded border text-left transition-colors min-w-[92px] max-w-[112px] cursor-pointer disabled:cursor-default ${
-                  !item
-                    ? 'border-white/5 bg-[#121620]/40 text-slate-600'
-                    : isArmed
-                      ? 'border-sky-400 bg-sky-500/20 text-sky-100'
-                      : usable
-                        ? isRune
-                          ? 'border-sky-400/25 bg-[#121926] text-[#ECE4D4] hover:border-sky-400/60'
-                          : 'border-emerald-400/25 bg-[#121B1A] text-[#ECE4D4] hover:border-emerald-400/60'
-                        : 'border-white/10 bg-[#121620] text-slate-500'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-1.5 text-[10px]">
-                  <span className={`font-mono-glyph ${isRune ? 'text-sky-300' : 'text-emerald-300'}`}>
-                    [{slotIdx + 6}]
-                  </span>
-                  {item && (
-                    <span className="font-mono-glyph text-[10px] text-slate-400 tabular-nums">
-                      {cd > 0 ? `CD ${cd}` : isRune ? 'Rune' : 'Infus'}
-                    </span>
-                  )}
-                </div>
-                <div className="text-[11px] font-medium truncate mt-0.5">
-                  {item ? `${item.glyph} ${item.name.replace(/^(Rare|Epic|Relic|Common)\s+/, '')}` : 'Inscription'}
-                </div>
-              </button>
-            );
-          })}
 
           <div className="h-8 w-px bg-white/10 mx-0.5" />
 
@@ -489,28 +350,9 @@ export const ActionDock: React.FC<ActionDockProps> = ({
             }}
             className="px-2.5 py-1.5 rounded border border-white/15 bg-[#141923] hover:border-white/30 text-left transition-colors cursor-pointer whitespace-nowrap shrink-0"
           >
-            <div className="text-[10px] font-mono-glyph text-slate-400">[.]</div>
             <div className="text-[11px] font-medium text-slate-200 mt-0.5">Wait</div>
           </button>
 
-          {player.companion && onCycleCompanionStance && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.currentTarget.blur();
-                onCycleCompanionStance();
-              }}
-              title="Cycle Spirit Companion Stance (Aggressive -> Guard -> Recall)"
-              className="px-2.5 py-1.5 rounded border border-sky-400/30 bg-[#121926] hover:border-sky-400/60 text-left transition-colors cursor-pointer whitespace-nowrap shrink-0"
-            >
-              <div className="text-[10px] font-mono-glyph text-sky-300 truncate">
-                {player.companion.kind === 'silverwind_lynx' ? 'Lynx' : 'Owl'}
-              </div>
-              <div className="text-[11px] font-medium text-slate-200 capitalize mt-0.5">
-                {player.companion.stance}
-              </div>
-            </button>
-          )}
         </div>
 
         {/* Compact Rolling Chronicle Log */}
@@ -520,8 +362,7 @@ export const ActionDock: React.FC<ActionDockProps> = ({
               key={entry.id}
               className={`text-xs truncate ${toneColor(entry.tone)} ${idx === 0 ? 'opacity-100' : idx === 1 ? 'opacity-70' : 'opacity-45'}`}
             >
-              <span className="font-mono-glyph text-[10px] text-slate-500 mr-1.5 tabular-nums">T{entry.turn}</span>
-              {entry.text}
+              {lineInner(entry)}
             </div>
           ))}
         </div>

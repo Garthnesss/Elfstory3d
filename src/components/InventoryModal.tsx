@@ -10,7 +10,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { formatStatList, getSalvageDustYield, RARITY_COLOR, RELIC_SETS } from '../game/loot';
+import { formatStatList, getSalvageGoldYield, RARITY_COLOR, RELIC_SETS } from '../game/loot';
 import { getEquippedSetCounts } from '../game/skills';
 import { DerivedStats, Item, ItemRarity, ItemSlot, ItemStats, PlayerState, RelicSetId } from '../game/types';
 
@@ -19,14 +19,13 @@ interface InventoryModalProps {
   derived: DerivedStats;
   onEquipItem: (itemId: string) => void;
   onUnequipItem: (slot: ItemSlot) => void;
-  onEquipInscription: (itemId: string, slotIdx: number) => void;
   onUseConsumable: (itemId: string) => void;
   onSalvageItem: (itemId: string) => void;
   onSalvageCommon: () => void;
   onClose: () => void;
 }
 
-type BagFilter = 'all' | 'equipment' | 'inscription' | 'consumable' | 'quest';
+type BagFilter = 'all' | 'equipment' | 'consumable' | 'quest';
 type SortMode = 'rarity' | 'slot' | 'value';
 
 const RARITY_RANK: Record<ItemRarity, number> = {
@@ -103,7 +102,6 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
   derived,
   onEquipItem,
   onUnequipItem,
-  onEquipInscription,
   onUseConsumable,
   onSalvageItem,
   onSalvageCommon,
@@ -116,14 +114,12 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
   const [sortMode, setSortMode] = useState<SortMode>('rarity');
   const [mobilePane, setMobilePane] = useState<'pack' | 'loadout'>('pack');
 
-  const inscriptions = player.inscriptions ?? [null, null, null];
   const equippedSetCounts = useMemo(() => getEquippedSetCounts(player), [player]);
 
   const categoryCounts = useMemo(() => {
     const counts: Record<BagFilter, number> = {
       all: player.inventory.length,
       equipment: 0,
-      inscription: 0,
       consumable: 0,
       quest: 0,
     };
@@ -137,7 +133,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
     const commons = player.inventory.filter((i) => i.category === 'equipment' && i.rarity === 'Common');
     return {
       count: commons.length,
-      dust: commons.reduce((sum, i) => sum + getSalvageDustYield(i), 0),
+      gold: commons.reduce((sum, i) => sum + getSalvageGoldYield(i), 0),
     };
   }, [player.inventory]);
 
@@ -158,8 +154,8 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
         if (diff !== 0) return diff;
         return RARITY_RANK[b.rarity] - RARITY_RANK[a.rarity];
       }
-      const sa = a.slot ? SLOT_ORDER[a.slot] : a.category === 'inscription' ? 6 : a.category === 'consumable' ? 7 : 8;
-      const sb = b.slot ? SLOT_ORDER[b.slot] : b.category === 'inscription' ? 6 : b.category === 'consumable' ? 7 : 8;
+      const sa = a.slot ? SLOT_ORDER[a.slot] : a.category === 'consumable' ? 6 : 7;
+      const sb = b.slot ? SLOT_ORDER[b.slot] : b.category === 'consumable' ? 6 : 7;
       if (sa !== sb) return sa - sb;
       return RARITY_RANK[b.rarity] - RARITY_RANK[a.rarity];
     });
@@ -170,17 +166,15 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
     return (
       player.inventory.find((i) => i.id === selectedId) ??
       Object.values(player.equipped).find((i) => i?.id === selectedId) ??
-      inscriptions.find((i) => i?.id === selectedId) ??
       visiblePack[0] ??
       Object.values(player.equipped).find(Boolean)
     );
-  }, [player.inventory, player.equipped, inscriptions, selectedId, visiblePack]);
+  }, [player.inventory, player.equipped, selectedId, visiblePack]);
 
   const isSelectedInPack = Boolean(selectedItem && player.inventory.some((i) => i.id === selectedItem.id));
   const equippedSlotMatch = (Object.keys(player.equipped) as ItemSlot[]).find(
     (slot) => player.equipped[slot]?.id === selectedItem?.id
   );
-  const inscriptionSlotMatch = inscriptions.findIndex((i) => i?.id === selectedItem?.id);
 
   const equippedCompare =
     selectedItem?.slot && selectedItem.category === 'equipment'
@@ -281,7 +275,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
               {player.name} · Armaments & Pack
             </h2>
             <p className="text-xs text-slate-400 mt-0.5 font-mono-glyph tabular-nums">
-              {player.gold} Gold · {player.glyphDust} Glyph Dust · {player.inventory.length}/28 Pack Slots
+              {player.gold} Gold · {player.inventory.length}/28 Pack Slots
             </p>
           </div>
           <button
@@ -322,7 +316,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
 
         {/* 3-Zone Workspace */}
         <div className="flex-1 overflow-y-auto rpg-scroll p-3.5 sm:p-5 grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5">
-          {/* LEFT ZONE: Hero Paperdoll + Combat Totals + Body Inscriptions */}
+          {/* LEFT ZONE: Hero Paperdoll + Combat Totals */}
           <div className={`lg:col-span-4 space-y-3.5 ${mobilePane === 'loadout' ? 'block' : 'hidden lg:block'}`}>
             <div className="rounded border border-white/10 bg-[#121722] p-3 space-y-2.5">
               <div className="flex items-center justify-between">
@@ -390,76 +384,15 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                         <div className="flex items-center justify-between font-medium">
                           <span>{meta.name}</span>
                           <span className="font-mono-glyph tabular-nums">
-                            {count}/2 {activeSet ? 'Active' : ''}
+                            {count}/2 pieces
                           </span>
                         </div>
-                        <div className="text-[10px] mt-0.5 opacity-90">{meta.bonusLabel}</div>
+                        <div className="text-[10px] mt-0.5 opacity-90">{meta.summary.replace('2-Piece Set: ', '')}</div>
                       </div>
                     );
                   })}
                 </div>
               )}
-            </div>
-
-            {/* Body Inscriptions [6-8] */}
-            <div className="rounded border border-white/10 bg-[#121722] p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-300">
-                  Body Inscriptions [6–8]
-                </h3>
-                <span className="text-[11px] text-slate-500">Cooldown Runes & Infusions</span>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {[0, 1, 2].map((slotIdx) => {
-                  const ins = inscriptions[slotIdx];
-                  const active = Boolean(ins && selectedItem?.id === ins.id);
-                  const cd = player.inscriptionCooldowns?.[slotIdx] ?? 0;
-                  return (
-                    <button
-                      key={`ins_${slotIdx}`}
-                      type="button"
-                      onClick={() => ins && setSelectedId(ins.id)}
-                      disabled={!ins}
-                      className={`rounded border p-2 min-h-[68px] text-left flex flex-col justify-between transition-colors ${
-                        ins
-                          ? active
-                            ? 'border-sky-400 bg-[#172334] cursor-pointer'
-                            : 'border-white/12 bg-[#141A25] hover:border-white/30 cursor-pointer'
-                          : 'border-dashed border-white/10 bg-[#0D1119]/75 cursor-default'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between text-[10px] font-mono-glyph">
-                        <span className="text-slate-400">[{slotIdx + 6}]</span>
-                        {ins && (
-                          <span className={ins.inscriptionCategory === 'rune' ? 'text-sky-300' : 'text-emerald-300'}>
-                            {cd > 0 ? `${cd}t` : `${ins.inscriptionCooldown}t`}
-                          </span>
-                        )}
-                      </div>
-                      {ins ? (
-                        <>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <span
-                              className="font-mono-glyph text-sm shrink-0"
-                              style={{ color: RARITY_COLOR[ins.rarity] }}
-                            >
-                              {ins.glyph}
-                            </span>
-                            <span className="text-[11px] font-medium text-[#ECE4D4] truncate">
-                              {ins.name.replace(/\s+(Rune|Infusion)$/i, '')}
-                            </span>
-                          </div>
-                          <div className="text-[10px] text-slate-400 truncate">
-                            {ins.inscriptionCategory === 'rune' ? 'Rune' : 'Infusion'}
-                          </div>
-                        </>
-                      ) : (
-                        <div className="text-[11px] text-slate-600 mt-2">Open</div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
             </div>
 
             {/* Companion Spirit Bond */}
@@ -477,8 +410,6 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                   {player.companion.kind === 'silverwind_lynx'
                     ? 'Aura: +4% Crit & Dodge · Ferocious melee pounce'
                     : 'Aura: +1 Sight Radius & +3 Spell Power · Restores +1 MP on strike'}
-                  {' · Stance: '}
-                  <span className="text-slate-200 capitalize">{player.companion.stance}</span>
                 </div>
               </div>
             )}
@@ -496,7 +427,6 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                 [
                   { id: 'all', label: 'All' },
                   { id: 'equipment', label: 'Gear' },
-                  { id: 'inscription', label: 'Runes' },
                   { id: 'consumable', label: 'Potions' },
                   { id: 'quest', label: 'Quest' },
                 ] as Array<{ id: BagFilter; label: string }>
@@ -540,7 +470,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                 >
                   <Trash2 className="w-3.5 h-3.5 text-sky-300" />
                   <span>
-                    Salvage {commonSalvageStats.count} Common (+{commonSalvageStats.dust} Dust)
+                    Salvage {commonSalvageStats.count} Common (+{commonSalvageStats.gold} Gold)
                   </span>
                 </button>
               )}
@@ -611,7 +541,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                         </div>
                         <div className="text-[10px] text-slate-400 flex items-center justify-between gap-1 mt-0.5 font-mono-glyph tabular-nums">
                           <span className="truncate capitalize">
-                            {item.slot ?? item.inscriptionCategory ?? item.category}
+                            {item.slot ?? item.category}
                           </span>
                           <span className="text-amber-300/90 shrink-0">
                             {item.value > 0 ? `${item.value}g` : 'Quest'}
@@ -651,12 +581,8 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                         </div>
                         <div className="text-[11px] text-slate-400 mt-0.5 capitalize">
                           {selectedItem.rarity}{' '}
-                          {selectedItem.slot
-                            ? `· ${selectedItem.slot}`
-                            : selectedItem.inscriptionCategory
-                              ? `· ${selectedItem.inscriptionCategory}`
-                              : `· ${selectedItem.category}`}
-                          {equippedSlotMatch ? ' · Equipped' : inscriptionSlotMatch >= 0 ? ` · Slot [${inscriptionSlotMatch + 6}]` : ''}
+                          {`· ${selectedItem.slot ?? selectedItem.category}`}
+                          {equippedSlotMatch ? ' · Equipped' : ''}
                         </div>
                       </div>
                     </div>
@@ -704,13 +630,6 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                         <div className="text-xs text-slate-500">No combat bonuses.</div>
                       )}
 
-                      {selectedItem.runeEnchant && (
-                        <div className="pt-2 border-t border-white/10 text-xs text-amber-200 font-medium flex items-start gap-1.5">
-                          <Sparkles className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-300" />
-                          <span>Rune Seal: {selectedItem.runeEnchant.label}</span>
-                        </div>
-                      )}
-
                       {selectedItem.affixLabel && (
                         <div className="pt-2 border-t border-white/10 text-xs text-sky-300 font-medium flex items-start gap-1.5">
                           <Flame className="w-3.5 h-3.5 shrink-0 mt-0.5 text-sky-400" />
@@ -743,26 +662,6 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                     </div>
                   )}
 
-                  {selectedItem.category === 'inscription' && (
-                    <div className="pt-2 border-t border-white/10 space-y-1 text-xs font-mono-glyph tabular-nums">
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-400">Type</span>
-                        <span className={selectedItem.inscriptionCategory === 'rune' ? 'text-sky-300' : 'text-emerald-300'}>
-                          {selectedItem.inscriptionCategory === 'rune' ? 'Arcane Rune' : 'Wild Infusion'}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-400">Cooldown</span>
-                        <span className="text-[#ECE4D4]">{selectedItem.inscriptionCooldown ?? 8} turns</span>
-                      </div>
-                      {selectedItem.inscriptionPower !== undefined && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-400">Potency</span>
-                          <span className="text-amber-200">{selectedItem.inscriptionPower}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
 
                 {/* Action Footer */}
@@ -791,32 +690,8 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                         onClick={() => onSalvageItem(selectedItem.id)}
                         className="w-full min-h-[44px] px-3 py-2 rounded text-xs font-medium border border-white/15 bg-[#19202E] text-sky-200 hover:border-sky-400/60 cursor-pointer tabular-nums"
                       >
-                        Salvage (+{getSalvageDustYield(selectedItem)} Glyph Dust)
+                        Salvage (+{getSalvageGoldYield(selectedItem)} Gold)
                       </button>
-                    </div>
-                  )}
-
-                  {isSelectedInPack && selectedItem.category === 'inscription' && (
-                    <div className="space-y-1.5">
-                      <div className="text-[11px] text-slate-400">Engrave onto Body Slot:</div>
-                      <div className="space-y-1.5">
-                        {[0, 1, 2].map((slotIdx) => {
-                          const existing = inscriptions[slotIdx];
-                          return (
-                            <button
-                              key={slotIdx}
-                              type="button"
-                              onClick={() => onEquipInscription(selectedItem.id, slotIdx)}
-                              className="w-full min-h-[44px] px-3 py-2 rounded text-xs font-medium border border-sky-400/40 bg-sky-500/15 hover:bg-sky-500/25 text-sky-100 flex items-center justify-between gap-2 cursor-pointer"
-                            >
-                              <span className="font-mono-glyph font-semibold">Slot [{slotIdx + 6}]</span>
-                              <span className="text-[11px] text-sky-200/80 truncate">
-                                {existing ? `Replaces ${existing.name}` : 'Empty Socket'}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
                     </div>
                   )}
 

@@ -55,7 +55,7 @@ export function getPerspectivePose(
   tileSize: number
 ): CameraPose {
   const fwd = getCameraForwardVector(yawRad);
-  const zoomScale = 36 / Math.max(24, Math.min(52, tileSize));
+  const zoomScale = 36 / Math.max(20, Math.min(52, tileSize));
 
   if (mode === 'tactical') {
     const backDist = 6.0 * zoomScale;
@@ -101,7 +101,7 @@ export function isCardinalOccluder(
   const lateral = Math.abs(vx * fwd.z - vz * fwd.x);
 
   if (mode === 'tactical') {
-    return behind > 0.25 && behind < 2.25 && lateral < 0.85;
+    return behind > 0.25 && behind < 2.75 && lateral < 1.35;
   }
   return behind > 0.25 && behind < 3.55 && lateral < 1.15;
 }

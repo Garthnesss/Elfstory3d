@@ -639,9 +639,6 @@ export function createEntity3DPool(parentGroup: THREE.Group): Entity3DPool {
       const mCork = makeLambert(0xb45309, flashMats, origColors);
       body.add(makePart(geo.oct, mPotion, 0.22, 0.26, 0.22, 0, 0.18, 0));
       body.add(makePart(geo.cyl, mCork, 0.08, 0.1, 0.08, 0, 0.34, 0));
-    } else if (drop.item.category === 'inscription') {
-      const mRune = makeLambert(0x38bdf8, flashMats, origColors);
-      body.add(makePart(geo.box, mRune, 0.24, 0.32, 0.08, 0, 0.24, 0));
     } else {
       const rarityHex =
         drop.item.rarity === 'Relic'

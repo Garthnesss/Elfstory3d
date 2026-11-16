@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { packZones, unpackZones } from '../src/game/cloudSave';
-import { BESTIARY_DEFS, computeBestiaryPerks, FEAT_DEFS } from '../src/game/codex';
+import { BESTIARY_DEFS, computeBestiaryRanks, FEAT_DEFS } from '../src/game/codex';
 import {
   calculatePlayerHit,
   findPathNextStep,
@@ -10,8 +10,6 @@ import {
 import {
   createNamedRelic,
   createStarterItem,
-  enchantEquipmentItem,
-  rerollEquipmentAffix,
 } from '../src/game/loot';
 import { NPCS } from '../src/game/npcs';
 import { computeDerivedStats, computeRespecPoints, getStarterPreset } from '../src/game/skills';
@@ -41,17 +39,13 @@ function makeTestPlayer(): PlayerState {
     xp: 0,
     xpToNext: 65,
     gold: 50,
-    glyphDust: 10,
     attributePoints: 0,
     skillPoints: 1,
     attributes: { ...preset.attributes },
     skills: { [preset.initialSkill]: 1 },
     hotbar: [preset.initialSkill, null, null, null, null],
     cooldowns: {},
-    inscriptions: [null, null, null],
-    inscriptionCooldowns: [0, 0, 0],
     prodigies: [],
-    prodigyPoints: 0,
     prodigyCooldowns: {},
     bonusHp: 0,
     statuses: [],
@@ -150,7 +144,7 @@ test('pathfinding does not cut diagonally past blocking wall corners', () => {
   }
 });
 
-test('bestiary hunter & slayer perks apply to derived stats and player damage', () => {
+test('bestiary ranks are codex honors only: no derived-stat or damage effect', () => {
   const player = makeTestPlayer();
   const baseFlags = makeTestFlags();
   const hunterFlags = makeTestFlags({ bestiaryKills: { crypt_skeleton: 3 } });
@@ -159,11 +153,11 @@ test('bestiary hunter & slayer perks apply to derived stats and player damage', 
   const baseStats = computeDerivedStats(player, baseFlags);
   const slayerStats = computeDerivedStats(player, slayerFlags);
 
-  // Crypt Sentinel Slayer = +1 DEF; Blight Rat Slayer = +4 Max HP
-  assert.equal(slayerStats.def, baseStats.def + 1);
-  assert.equal(slayerStats.maxHp, baseStats.maxHp + 4);
-  assert.equal(computeBestiaryPerks(hunterFlags).damageMultiplierVs('crypt_skeleton'), 1.1);
-  assert.equal(computeBestiaryPerks(baseFlags).damageMultiplierVs('crypt_skeleton'), 1);
+  // Ranks grant no stats after the cut pass: derived stats are identical.
+  assert.deepEqual(slayerStats, baseStats);
+  assert.equal(computeBestiaryRanks(hunterFlags).unlockedHunters, 1);
+  assert.equal(computeBestiaryRanks(slayerFlags).unlockedSlayers, 2);
+  assert.equal(computeBestiaryRanks(baseFlags).unlockedHunters, 0);
 
   const enemy: Enemy = {
     id: 'test_skel',
@@ -186,7 +180,7 @@ test('bestiary hunter & slayer perks apply to derived stats and player damage', 
 
   const normalHit = calculatePlayerHit(player, enemy, 2, false, true, 0, baseFlags);
   const hunterHit = calculatePlayerHit(player, enemy, 2, false, true, 0, hunterFlags);
-  assert.ok(hunterHit.damage > normalHit.damage);
+  assert.equal(hunterHit.damage, normalHit.damage);
 });
 
 test('bonusHp increases maxHp without mutating resolve or defense, and Lyra cipher is one-time', () => {
@@ -214,29 +208,8 @@ test('bonusHp increases maxHp without mutating resolve or defense, and Lyra ciph
   assert.ok(actions.some((a) => a.type === 'set_flag' && a.flag === 'cipherInscribed' && a.value === true));
 });
 
-test('runeforge enchantments swap stats cleanly without stat leakage and reroll mutates affix', () => {
-  const starter = createStarterItem('sword');
-  const atkSword = enchantEquipmentItem(starter, 'keen_edge');
-  assert.equal(atkSword.runeEnchant?.id, 'keen_edge');
-  assert.equal(atkSword.stats.atk, (starter.stats.atk ?? 0) + 3);
-
-  // Re-enchanting with ward_plate must remove keen_edge (+3 ATK, +3 critChance) cleanly
-  const wardSword = enchantEquipmentItem(atkSword, 'ward_plate');
-  assert.equal(wardSword.runeEnchant?.id, 'ward_plate');
-  assert.equal(wardSword.stats.atk, starter.stats.atk ?? 0);
-  assert.equal(wardSword.stats.critChance ?? 0, starter.stats.critChance ?? 0);
-  assert.equal(wardSword.stats.def, (starter.stats.def ?? 0) + 3);
-  assert.equal(wardSword.stats.maxHp, (starter.stats.maxHp ?? 0) + 10);
-
-  const relic = createNamedRelic('sylvan_longblade');
-  const rerolled = rerollEquipmentAffix(relic);
-  assert.notEqual(rerolled.affix, relic.affix);
-  assert.ok(Boolean(rerolled.affixLabel));
-});
-
-test('feat predicates unlock runeforger, set_collector, town_patron, and first_blood', () => {
+test('feat predicates unlock town_patron and first_blood; runeforger and set_collector are gone', () => {
   const basePlayer = makeTestPlayer();
-  const enchanted = enchantEquipmentItem(basePlayer.equipped.weapon!, 'vital_heart');
   const blade = createNamedRelic('sylvan_longblade');
   const mantle = createNamedRelic('starlight_mantle');
 
@@ -244,7 +217,7 @@ test('feat predicates unlock runeforger, set_collector, town_patron, and first_b
     ...basePlayer,
     kills: 10,
     equipped: {
-      weapon: { ...blade, runeEnchant: enchanted.runeEnchant },
+      weapon: blade,
       armor: mantle,
     },
   };
@@ -253,13 +226,11 @@ test('feat predicates unlock runeforger, set_collector, town_patron, and first_b
   });
 
   const firstBlood = FEAT_DEFS.find((f) => f.id === 'first_blood')!;
-  const runeforger = FEAT_DEFS.find((f) => f.id === 'runeforger')!;
-  const setCollector = FEAT_DEFS.find((f) => f.id === 'set_collector')!;
+  assert.equal(FEAT_DEFS.find((f) => f.id === 'runeforger'), undefined);
+  assert.equal(FEAT_DEFS.find((f) => f.id === 'set_collector'), undefined);
   const townPatron = FEAT_DEFS.find((f) => f.id === 'town_patron')!;
 
   assert.equal(firstBlood.check(equippedPlayer, flags), true);
-  assert.equal(runeforger.check(equippedPlayer, flags), true);
-  assert.equal(setCollector.check(equippedPlayer, flags), true);
   assert.equal(townPatron.check(equippedPlayer, flags), true);
 });
 
@@ -461,17 +432,6 @@ test('computeRespecPoints refunds initial starter skill point plus all quest and
   assert.equal(maxed.skillPoints, 11);
   // 5*2 level ups + 1 barrow + 1 cinder_and_frost = 12 attribute points
   assert.equal(maxed.attributePoints, 12);
-});
-
-test('P0 regression: runeforge swaps never raise item value (no compounding gold exploit)', () => {
-  let item = createNamedRelic('cinder_crown');
-  const originalValue = item.value;
-  // Alternate two runes 40 times — previously each swap multiplied value by
-  // 1.15, so a 190g item could be sold for ~27,900g after ~40 swaps.
-  for (let i = 0; i < 40; i++) {
-    item = enchantEquipmentItem(item, i % 2 === 0 ? 'keen_edge' : 'ward_plate');
-    assert.equal(item.value, originalValue, `value changed on swap ${i + 1}`);
-  }
 });
 
 test('P0 regression: Vex smuggler tip is gated one-time by the vexTipClaimed flag', () => {

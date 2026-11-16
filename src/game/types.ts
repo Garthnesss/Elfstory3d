@@ -150,18 +150,6 @@ export type ConsumableKind =
   | 'ward_talisman'
   | 'throwing_knife';
 
-export type InscriptionCategory = 'rune' | 'infusion';
-
-export type InscriptionKind =
-  | 'shielding_rune'
-  | 'phase_door_rune'
-  | 'manasurge_rune'
-  | 'biting_gale_rune'
-  | 'regeneration_infusion'
-  | 'wild_infusion'
-  | 'movement_infusion'
-  | 'heroism_infusion';
-
 export type ProdigyId =
   | 'cauterize'
   | 'draconic_will'
@@ -183,10 +171,8 @@ export interface ProdigyDef {
 
 export type RelicSetId = 'starlight_outrider' | 'cinderforged' | 'thornbound' | 'rimebound';
 
-export type RuneEnchantId = 'keen_edge' | 'ward_plate' | 'aether_core' | 'vital_heart' | 'swift_wind';
 
 export type CompanionKind = 'silverwind_lynx' | 'starlight_owl';
-export type CompanionStance = 'aggressive' | 'guard' | 'recall';
 
 export interface CompanionState {
   kind: CompanionKind;
@@ -195,20 +181,15 @@ export interface CompanionState {
   y: number;
   hp: number;
   maxHp: number;
-  stance: CompanionStance;
   respawnCooldown: number;
 }
 
 export interface Item {
   id: string;
   name: string;
-  category: 'equipment' | 'consumable' | 'quest' | 'inscription';
+  category: 'equipment' | 'consumable' | 'quest';
   slot?: ItemSlot;
   consumableKind?: ConsumableKind;
-  inscriptionKind?: InscriptionKind;
-  inscriptionCategory?: InscriptionCategory;
-  inscriptionCooldown?: number;
-  inscriptionPower?: number;
   rarity: ItemRarity;
   glyph: string;
   levelReq: number;
@@ -217,10 +198,6 @@ export interface Item {
   affix?: ItemAffixId;
   affixLabel?: string;
   setId?: RelicSetId;
-  runeEnchant?: {
-    id: RuneEnchantId;
-    label: string;
-  };
   value: number;
   description: string;
   quantity?: number;
@@ -376,18 +353,14 @@ export interface PlayerState {
   xp: number;
   xpToNext: number;
   gold: number;
-  glyphDust: number;
   attributePoints: number;
   skillPoints: number;
-  prodigyPoints?: number;
   attributes: Attributes;
   skills: Partial<Record<SkillId, number>>;
   prodigies?: ProdigyId[];
   prodigyCooldowns?: Partial<Record<ProdigyId, number>>;
   hotbar: Array<SkillId | null>;
   cooldowns: Partial<Record<SkillId, number>>;
-  inscriptions?: Array<Item | null>;
-  inscriptionCooldowns?: number[];
   hasteSteps?: number;
   bonusHp?: number;
   statuses: StatusEffect[];

@@ -1,7 +1,5 @@
 import {
   ConsumableKind,
-  InscriptionCategory,
-  InscriptionKind,
   Item,
   ItemAffixId,
   ItemRarity,
@@ -9,54 +7,7 @@ import {
   ItemStats,
   PlayerState,
   RelicSetId,
-  RuneEnchantId,
 } from './types';
-
-export const RUNE_ENCHANTS: Record<
-  RuneEnchantId,
-  { name: string; label: string; stats: ItemStats; dustCost: number; goldCost: number }
-> = {
-  keen_edge: {
-    name: 'Rune of Keen Edge',
-    label: 'Rune Seal: +3 ATK · +3% Crit',
-    stats: { atk: 3, critChance: 3 },
-    dustCost: 10,
-    goldCost: 24,
-  },
-  ward_plate: {
-    name: 'Rune of Bastion Plate',
-    label: 'Rune Seal: +3 DEF · +10 Max HP',
-    stats: { def: 3, maxHp: 10 },
-    dustCost: 10,
-    goldCost: 24,
-  },
-  aether_core: {
-    name: 'Rune of Aether Core',
-    label: 'Rune Seal: +4 Spell · +6 Max MP',
-    stats: { spellPower: 4, maxMana: 6 },
-    dustCost: 10,
-    goldCost: 24,
-  },
-  vital_heart: {
-    name: 'Rune of Vital Heart',
-    label: 'Rune Seal: +16 Max HP · +2% Lifesteal',
-    stats: { maxHp: 16, lifesteal: 2 },
-    dustCost: 12,
-    goldCost: 28,
-  },
-  swift_wind: {
-    name: 'Rune of Silver Wind',
-    label: 'Rune Seal: +4% Dodge · +4% Crit',
-    stats: { dodgeChance: 4, critChance: 4 },
-    dustCost: 10,
-    goldCost: 24,
-  },
-};
-
-export const ALL_RUNE_ENCHANTS = (Object.keys(RUNE_ENCHANTS) as RuneEnchantId[]).map((id) => ({
-  id,
-  ...RUNE_ENCHANTS[id],
-}));
 
 export const RELIC_SETS: Record<
   RelicSetId,
@@ -339,154 +290,6 @@ export function createConsumable(kind: ConsumableKind, quantity = 1): Item {
         quantity,
         description: 'Strikes the nearest visible foe for 14 damage + Bleed.',
       };
-  }
-}
-
-export interface InscriptionMeta {
-  kind: InscriptionKind;
-  name: string;
-  inscrCategory: InscriptionCategory;
-  glyph: string;
-  baseCd: number;
-  basePower: number;
-  summary: (power: number) => string;
-}
-
-export const INSCRIPTION_META: Record<InscriptionKind, InscriptionMeta> = {
-  shielding_rune: {
-    kind: 'shielding_rune',
-    name: 'Shielding Rune',
-    inscrCategory: 'rune',
-    glyph: '◊',
-    baseCd: 12,
-    basePower: 9,
-    summary: (p) => `Rune: Raises an arcane barrier (+${p} DEF Shielded for 4 turns).`,
-  },
-  phase_door_rune: {
-    kind: 'phase_door_rune',
-    name: 'Phase Door Rune',
-    inscrCategory: 'rune',
-    glyph: '◈',
-    baseCd: 13,
-    basePower: 6,
-    summary: (p) => `Rune: Blink up to ${Math.min(7, 5 + Math.floor(p / 6))} visible tiles and evade danger.`,
-  },
-  manasurge_rune: {
-    kind: 'manasurge_rune',
-    name: 'Manasurge Rune',
-    inscrCategory: 'rune',
-    glyph: '✦',
-    baseCd: 14,
-    basePower: 14,
-    summary: (p) => `Rune: Surges +${p} Mana immediately and empowers your spirit.`,
-  },
-  biting_gale_rune: {
-    kind: 'biting_gale_rune',
-    name: 'Biting Gale Rune',
-    inscrCategory: 'rune',
-    glyph: '❄',
-    baseCd: 13,
-    basePower: 14,
-    summary: (p) => `Rune: Erupts frost around you (Radius 2), dealing ${p} dmg and Chilling foes (3t).`,
-  },
-  regeneration_infusion: {
-    kind: 'regeneration_infusion',
-    name: 'Regeneration Infusion',
-    inscrCategory: 'infusion',
-    glyph: '✿',
-    baseCd: 12,
-    basePower: 6,
-    summary: (p) => `Infusion: Mends +${p} HP now and +${p} HP per turn for 4 turns.`,
-  },
-  wild_infusion: {
-    kind: 'wild_infusion',
-    name: 'Wild Infusion',
-    inscrCategory: 'infusion',
-    glyph: '♣',
-    baseCd: 14,
-    basePower: 6,
-    summary: (p) => `Infusion: Cleanses Bleed/Burn/Poison/Chill and grants +${p} DEF Shielded (3t).`,
-  },
-  movement_infusion: {
-    kind: 'movement_infusion',
-    name: 'Movement Infusion',
-    inscrCategory: 'infusion',
-    glyph: '»',
-    baseCd: 15,
-    basePower: 2,
-    summary: () => `Infusion: Grants 2 free rapid movement steps without advancing enemy turns.`,
-  },
-  heroism_infusion: {
-    kind: 'heroism_infusion',
-    name: 'Heroism Infusion',
-    inscrCategory: 'infusion',
-    glyph: '★',
-    baseCd: 16,
-    basePower: 10,
-    summary: (p) => `Infusion: Bolsters resolve (+${p} HP, +${Math.max(4, Math.round(p * 0.6))} DEF Shielded for 4t).`,
-  },
-};
-
-export function generateInscription(
-  depth: number,
-  options?: { kind?: InscriptionKind; minRarity?: ItemRarity }
-): Item {
-  const kinds = Object.keys(INSCRIPTION_META) as InscriptionKind[];
-  const kind = options?.kind ?? kinds[Math.floor(Math.random() * kinds.length)];
-  const meta = INSCRIPTION_META[kind];
-  const rarity = rollRarity(depth, options?.minRarity ?? 'Uncommon');
-  const rarityScale =
-    rarity === 'Common' ? 0.9 : rarity === 'Uncommon' ? 1.0 : rarity === 'Rare' ? 1.3 : rarity === 'Epic' ? 1.6 : 1.9;
-  const cdReduction = rarity === 'Relic' ? 3 : rarity === 'Epic' ? 2 : rarity === 'Rare' ? 1 : 0;
-
-  const power = Math.max(2, Math.round((meta.basePower + Math.max(0, depth - 1) * 1.4) * rarityScale));
-  const cooldown = Math.max(7, meta.baseCd - cdReduction);
-  const value = Math.round(28 * rarityScale + depth * 8);
-
-  return {
-    id: nextItemId(),
-    name: `${rarity === 'Uncommon' ? '' : `${rarity} `}${meta.name}`,
-    category: 'inscription',
-    inscriptionKind: kind,
-    inscriptionCategory: meta.inscrCategory,
-    inscriptionCooldown: cooldown,
-    inscriptionPower: power,
-    rarity,
-    glyph: meta.glyph,
-    levelReq: Math.max(1, depth),
-    upgradeLevel: 0,
-    stats: {},
-    value,
-    description: `${meta.summary(power)} (Cooldown: ${cooldown}t)`,
-  };
-}
-
-export function getStarterInscriptions(starterClass: PlayerState['starterClass']): Array<Item | null> {
-  switch (starterClass) {
-    case 'Vanguard':
-      return [
-        generateInscription(1, { kind: 'shielding_rune', minRarity: 'Uncommon' }),
-        generateInscription(1, { kind: 'regeneration_infusion', minRarity: 'Uncommon' }),
-        null,
-      ];
-    case 'Shadowcraft':
-      return [
-        generateInscription(1, { kind: 'phase_door_rune', minRarity: 'Uncommon' }),
-        generateInscription(1, { kind: 'wild_infusion', minRarity: 'Uncommon' }),
-        null,
-      ];
-    case 'Runecaster':
-      return [
-        generateInscription(1, { kind: 'shielding_rune', minRarity: 'Uncommon' }),
-        generateInscription(1, { kind: 'manasurge_rune', minRarity: 'Uncommon' }),
-        null,
-      ];
-    default:
-      return [
-        generateInscription(1, { kind: 'regeneration_infusion', minRarity: 'Uncommon' }),
-        generateInscription(1, { kind: 'wild_infusion', minRarity: 'Uncommon' }),
-        null,
-      ];
   }
 }
 
@@ -976,43 +779,7 @@ export function upgradeEquipmentItem(item: Item): Item {
   };
 }
 
-export function enchantEquipmentItem(item: Item, enchantId: RuneEnchantId): Item {
-  const def = RUNE_ENCHANTS[enchantId];
-  const updatedStats: ItemStats = { ...item.stats };
-  if (item.runeEnchant) {
-    const prevDef = RUNE_ENCHANTS[item.runeEnchant.id];
-    if (prevDef) {
-      for (const [k, v] of Object.entries(prevDef.stats)) {
-        const key = k as keyof ItemStats;
-        updatedStats[key] = Math.max(0, (updatedStats[key] ?? 0) - (v ?? 0));
-      }
-    }
-  }
-  for (const [k, v] of Object.entries(def.stats)) {
-    const key = k as keyof ItemStats;
-    updatedStats[key] = (updatedStats[key] ?? 0) + (v ?? 0);
-  }
-  // Value intentionally unchanged: enchanting (and especially swapping an
-  // existing rune) must never raise sell value, or repeated swaps compound
-  // value x1.15 per swap for a flat cost — an exponential gold exploit.
-  return {
-    ...item,
-    stats: updatedStats,
-    runeEnchant: { id: enchantId, label: def.label },
-  };
-}
-
-export function rerollEquipmentAffix(item: Item): Item {
-  const candidates = AFFIX_POOL.filter((a) => a.id !== item.affix);
-  const picked = candidates[Math.floor(Math.random() * candidates.length)] ?? AFFIX_POOL[0];
-  return {
-    ...item,
-    affix: picked.id,
-    affixLabel: picked.label,
-  };
-}
-
-export function getSalvageDustYield(item: Item): number {
+export function getSalvageGoldYield(item: Item): number {
   const base =
     item.rarity === 'Common' ? 3 : item.rarity === 'Uncommon' ? 6 : item.rarity === 'Rare' ? 12 : item.rarity === 'Epic' ? 20 : 32;
   return base + item.upgradeLevel * 5;

@@ -22,7 +22,6 @@ import { LORE_ENTRIES, NPCS, QUEST_DEFS } from '../src/game/npcs';
 import { deriveTrackedObjectives, getQuestNextHint } from '../src/game/quests';
 import {
   computeDerivedStats,
-  getActiveRelicSets,
   getEquippedSetCounts,
   getStarterPreset,
 } from '../src/game/skills';
@@ -88,7 +87,6 @@ function makeTestPlayer(): PlayerState {
     xp: 0,
     xpToNext: 65,
     gold: 35,
-    glyphDust: 0,
     attributePoints: 0,
     skillPoints: 0,
     attributes: { ...preset.attributes },
@@ -371,7 +369,7 @@ test('Phase 3 traps: Venom Dart Snares join Spike Snares from depth 2 down', () 
 
 // ------------------------------------------------------- relic sets
 
-test('Phase 3 relic sets: pool is 4 sets / 8 pieces with wired bonuses', () => {
+test('Phase 3 relic sets: pool is 4 sets / 8 pieces; set identity grants no stat bonus', () => {
   assert.deepEqual(Object.keys(RELIC_SETS).sort(), ['cinderforged', 'rimebound', 'starlight_outrider', 'thornbound']);
   for (const set of Object.values(RELIC_SETS)) assert.equal(set.pieces.length, 2);
 
@@ -395,7 +393,6 @@ test('Phase 3 relic sets: pool is 4 sets / 8 pieces with wired bonuses', () => {
     equipped: { helm: circlet, amulet: talisman },
   } as PlayerState;
   assert.equal(getEquippedSetCounts(withThorn).thornbound, 2);
-  assert.ok(getActiveRelicSets(withThorn).includes('thornbound'));
   const stripped = {
     ...base,
     equipped: {
@@ -405,10 +402,8 @@ test('Phase 3 relic sets: pool is 4 sets / 8 pieces with wired bonuses', () => {
   } as PlayerState;
   const dThorn = computeDerivedStats(withThorn);
   const dStripped = computeDerivedStats(stripped);
-  assert.equal(dThorn.atk - dStripped.atk, 3, 'thornbound set: +3 ATK');
-  assert.equal(dThorn.thorns - dStripped.thorns, 4, 'thornbound set: +4 Thorns');
-  assert.equal(dThorn.lifesteal - dStripped.lifesteal, 3, 'thornbound set: +3% Lifesteal');
-  assert.equal(dThorn.maxHp - dStripped.maxHp, 12, 'thornbound set: +12 Max HP');
+  // Set bonuses were cut: a matched pair derives exactly the pieces' own stats.
+  assert.deepEqual(dThorn, dStripped);
 
   const withRime = { ...base, equipped: { amulet: pendant, armor: plate } } as PlayerState;
   const strippedRime = {
@@ -420,10 +415,7 @@ test('Phase 3 relic sets: pool is 4 sets / 8 pieces with wired bonuses', () => {
   } as PlayerState;
   const dRime = computeDerivedStats(withRime);
   const dStrippedRime = computeDerivedStats(strippedRime);
-  assert.equal(dRime.def - dStrippedRime.def, 5, 'rimebound set: +5 DEF');
-  assert.equal(dRime.dodgeChance - dStrippedRime.dodgeChance, 8, 'rimebound set: +8% Dodge');
-  assert.equal(dRime.maxMana - dStrippedRime.maxMana, 10, 'rimebound set: +10 Max Mana');
-  assert.equal(dRime.maxHp - dStrippedRime.maxHp, 8, 'rimebound set: +8 Max HP');
+  assert.deepEqual(dRime, dStrippedRime);
 });
 
 test('Phase 3 relic sets: random set-relic pool grows with depth across all four sets', () => {

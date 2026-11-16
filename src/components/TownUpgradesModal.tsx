@@ -32,7 +32,7 @@ export const TownUpgradesModal: React.FC<TownUpgradesModalProps> = ({
               <span>Outpost &amp; Citadel Upgrades</span>
             </h2>
             <p className="text-xs text-slate-400 font-mono-glyph mt-0.5 tabular-nums">
-              Purse: {player.gold} Gold · {player.glyphDust} Glyph Dust
+              Purse: {player.gold} Gold
             </p>
           </div>
           <button
@@ -47,7 +47,7 @@ export const TownUpgradesModal: React.FC<TownUpgradesModalProps> = ({
 
         <div className="flex-1 overflow-y-auto rpg-scroll p-4 sm:p-6 space-y-4">
           <p className="text-xs text-slate-300 leading-relaxed">
-            Invest Gold and Glyph Dust into realm infrastructure across all four sanctuaries (Oakhaven, Thornwick Fen, Cinderwatch Bastion, and Highspire Citadel). Permanent upgrades empower every expedition across Silverwood Vale and the Abyss.
+            Invest Gold into realm infrastructure across all four sanctuaries (Oakhaven, Thornwick Fen, Cinderwatch Bastion, and Highspire Citadel). Permanent upgrades empower every expedition across Silverwood Vale and the Abyss.
           </p>
 
           <div className="space-y-3">
@@ -56,7 +56,7 @@ export const TownUpgradesModal: React.FC<TownUpgradesModalProps> = ({
               const isMax = curLv >= def.maxLevel;
               const nextSpec = !isMax ? def.levels[curLv] : null;
               const canAfford = Boolean(
-                nextSpec && player.gold >= nextSpec.gold && player.glyphDust >= nextSpec.dust
+                nextSpec && player.gold >= nextSpec.gold
               );
 
               return (
@@ -115,7 +115,7 @@ export const TownUpgradesModal: React.FC<TownUpgradesModalProps> = ({
                         onClick={() => onPurchaseUpgrade(def.id)}
                         className="min-h-[44px] px-4 py-2 rounded text-xs font-semibold bg-amber-500 text-[#0B0D12] hover:bg-amber-400 disabled:bg-white/10 disabled:text-slate-500 cursor-pointer font-mono-glyph tabular-nums"
                       >
-                        Fund Tier {curLv + 1} ({nextSpec!.gold}g · {nextSpec!.dust} Dust)
+                        Fund Tier {curLv + 1} ({nextSpec!.gold}g)
                       </button>
                     )}
                   </div>

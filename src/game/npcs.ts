@@ -1,4 +1,4 @@
-import { createConsumable, generateInscription, generateProceduralItem } from './loot';
+import { createConsumable, generateProceduralItem } from './loot';
 import { Item, NpcDef, QuestProgress } from './types';
 import corvusPortrait from '../assets/images/portrait_corvus_1794537785514.jpg';
 import kaelenPortrait from '../assets/images/portrait_kaelen_1794537786190.jpg';
@@ -140,7 +140,7 @@ export const LORE_ENTRIES: Record<string, { title: string; text: string }> = {
   },
   lore_forge: {
     title: 'Anvil Ledger of Torin’s Kin',
-    text: '"Deep-vault coal burns hotter than surface oak. Even a cracked blade can drink Glyph Dust here and emerge keen enough to cleave obsidian."',
+    text: '"Deep-vault coal burns hotter than surface oak. Even a cracked blade can drink deep-vault heat here and emerge keen enough to cleave obsidian."',
   },
   lore_altar: {
     title: 'Edict of the Scarlet Pact',
@@ -164,7 +164,7 @@ export const LORE_ENTRIES: Record<string, { title: string; text: string }> = {
   },
   lore_mire: {
     title: 'Mycelial Ward Note',
-    text: '"Blight pools sap breath and marrow alike, yet those quick of step or rich in arcana can harvest pure Glyph Dust from the glowing spores."',
+    text: '"Blight pools sap breath and marrow alike, yet those quick of step or rich in arcana can harvest gold from the glowing spores."',
   },
   lore_frost: {
     title: 'Frostpeak Miner’s Warning',
@@ -221,7 +221,7 @@ export const NPCS: Record<string, NpcDef> = {
       },
       craft_pass: {
         id: 'craft_pass',
-        text: 'Torin eyes your stance and nods in genuine approval. "You’ve got a warrior’s grip. Salvage dull trinkets in your pack for Glyph Dust—bring that dust to my Forge tab and I’ll push any weapon or armor past its limits."',
+        text: 'Torin eyes your stance and nods in genuine approval. "You’ve got a warrior’s grip. Salvage dull trinkets in your pack for gold—bring it to my Temper tab and I’ll push any weapon or armor past its limits."',
         choices: [
           {
             id: 'open_shop',
@@ -233,7 +233,7 @@ export const NPCS: Record<string, NpcDef> = {
       },
       craft_fail: {
         id: 'craft_fail',
-        text: 'Torin chuckles softly. "Build your strength first, traveler. Until then, let my bellows do the heavy lifting—bring gold or Glyph Dust whenever you need an edge."',
+        text: 'Torin chuckles softly. "Build your strength first, traveler. Until then, let my bellows do the heavy lifting—bring gold whenever you need an edge."',
         choices: [{ id: 'back', label: 'Back', nextNodeId: 'root' }],
       },
     },
@@ -1289,7 +1289,7 @@ export const NPCS: Record<string, NpcDef> = {
         choices: [
           {
             id: 'open_bram',
-            label: 'Browse Bram’s Salvage & Runeforge',
+            label: 'Browse Bram’s Salvage',
             action: { type: 'open_merchant', merchantId: 'bram' },
           },
           {
@@ -1326,7 +1326,7 @@ export const NPCS: Record<string, NpcDef> = {
         choices: [
           {
             id: 'open_halda',
-            label: 'Browse Bastion Armory & Runeforge',
+            label: 'Browse Bastion Armory',
             action: { type: 'open_merchant', merchantId: 'halda' },
           },
           {
@@ -1624,15 +1624,15 @@ export function createMerchantStock(merchantId: string): Item[] {
       createConsumable('mana_potion', 2),
       createConsumable('ward_talisman', 2),
       createConsumable('scroll_blink', 1),
-      generateInscription(1, { kind: 'regeneration_infusion', minRarity: 'Uncommon' }),
-      generateInscription(1, { kind: 'wild_infusion', minRarity: 'Uncommon' }),
+      createConsumable('heal_potion', 2),
+      createConsumable('ward_talisman', 1),
     ];
   }
   if (merchantId === 'vex') {
     return [
       generateProceduralItem(2, { slot: 'weapon', minRarity: 'Rare' }),
       generateProceduralItem(2, { slot: 'ring', minRarity: 'Uncommon' }),
-      generateInscription(2, { kind: 'movement_infusion', minRarity: 'Rare' }),
+      createConsumable('scroll_blink', 1),
       createConsumable('throwing_knife', 3),
       createConsumable('scroll_blink', 2),
     ];
@@ -1641,8 +1641,8 @@ export function createMerchantStock(merchantId: string): Item[] {
     return [
       generateProceduralItem(2, { slot: 'amulet', minRarity: 'Rare' }),
       generateProceduralItem(2, { slot: 'ring', minRarity: 'Uncommon' }),
-      generateInscription(2, { kind: 'phase_door_rune', minRarity: 'Rare' }),
-      generateInscription(2, { kind: 'wild_infusion', minRarity: 'Uncommon' }),
+      createConsumable('scroll_blink', 1),
+      createConsumable('throwing_knife', 2),
       createConsumable('scroll_blink', 2),
       createConsumable('throwing_knife', 3),
     ];
@@ -1652,8 +1652,8 @@ export function createMerchantStock(merchantId: string): Item[] {
       generateProceduralItem(5, { slot: 'weapon', minRarity: 'Epic' }),
       generateProceduralItem(5, { slot: 'armor', minRarity: 'Rare' }),
       generateProceduralItem(5, { slot: 'helm', minRarity: 'Rare' }),
-      generateInscription(5, { kind: 'biting_gale_rune', minRarity: 'Rare' }),
-      generateInscription(5, { kind: 'manasurge_rune', minRarity: 'Rare' }),
+      createConsumable('throwing_knife', 3),
+      createConsumable('mana_potion', 2),
       createConsumable('heal_potion', 3),
       createConsumable('ward_talisman', 2),
     ];
@@ -1663,8 +1663,8 @@ export function createMerchantStock(merchantId: string): Item[] {
       generateProceduralItem(4, { slot: 'weapon', minRarity: 'Rare' }),
       generateProceduralItem(4, { slot: 'armor', minRarity: 'Rare' }),
       generateProceduralItem(4, { slot: 'amulet', minRarity: 'Epic' }),
-      generateInscription(4, { kind: 'shielding_rune', minRarity: 'Rare' }),
-      generateInscription(4, { kind: 'heroism_infusion', minRarity: 'Rare' }),
+      createConsumable('ward_talisman', 1),
+      createConsumable('heal_potion', 2),
       createConsumable('heal_potion', 2),
       createConsumable('mana_potion', 2),
     ];

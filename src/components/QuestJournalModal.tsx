@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Award, BookOpen, Skull, X } from 'lucide-react';
-import { ALL_BESTIARY_LIST, computeBestiaryPerks, FEAT_DEFS } from '../game/codex';
+import { ALL_BESTIARY_LIST, computeBestiaryRanks, FEAT_DEFS } from '../game/codex';
 import { formatStatList } from '../game/loot';
 import { LORE_ENTRIES, QUEST_DEFS } from '../game/npcs';
 import { getQuestNextHint } from '../game/quests';
@@ -9,6 +9,13 @@ import { QuestProgress, WorldFlags } from '../game/types';
 interface QuestJournalModalProps {
   quests: Record<string, QuestProgress>;
   worldFlags: WorldFlags;
+  zoneBrief?: {
+    name: string;
+    subtitle: string;
+    lore: string;
+    tactical: string;
+    recommended: string;
+  };
   onClose: () => void;
 }
 
@@ -19,6 +26,7 @@ const TOTAL_STELE_COUNT = Object.keys(LORE_ENTRIES).length;
 export const QuestJournalModal: React.FC<QuestJournalModalProps> = ({
   quests,
   worldFlags,
+  zoneBrief,
   onClose,
 }) => {
   const [tab, setTab] = useState<CodexTab>('quests');
@@ -31,8 +39,7 @@ export const QuestJournalModal: React.FC<QuestJournalModalProps> = ({
     .filter((item) => Boolean(item.entry));
 
   const bestiaryKills = worldFlags.bestiaryKills ?? {};
-  const perks = computeBestiaryPerks(worldFlags);
-  const activeSlayerList = formatStatList(perks.slayerStats);
+  const ranks = computeBestiaryRanks(worldFlags);
   const unlockedFeats = new Set(worldFlags.unlockedFeats ?? []);
 
   return (
@@ -44,7 +51,7 @@ export const QuestJournalModal: React.FC<QuestJournalModalProps> = ({
               Expedition Journal &amp; Codex
             </h2>
             <p className="text-xs text-slate-400 mt-0.5 tabular-nums">
-              Quests: {active.length} active · Steles: {readLore.length}/{TOTAL_STELE_COUNT} · Bestiary Hunters: {perks.unlockedHunters}/{ALL_BESTIARY_LIST.length} · Feats: {unlockedFeats.size}/{FEAT_DEFS.length}
+              Quests: {active.length} active · Steles: {readLore.length}/{TOTAL_STELE_COUNT} · Bestiary Hunters: {ranks.unlockedHunters}/{ALL_BESTIARY_LIST.length} · Feats: {unlockedFeats.size}/{FEAT_DEFS.length}
             </p>
           </div>
 
@@ -84,6 +91,18 @@ export const QuestJournalModal: React.FC<QuestJournalModalProps> = ({
         <div className="flex-1 overflow-y-auto rpg-scroll p-4 sm:p-6 space-y-6">
           {tab === 'quests' && (
             <>
+              {zoneBrief && (
+                <section className="p-4 rounded border border-amber-500/25 bg-[#151A25] space-y-1.5">
+                  <div className="flex flex-wrap items-baseline gap-x-2">
+                    <span className="font-display text-base font-bold text-amber-200">{zoneBrief.name}</span>
+                    <span className="text-[11px] font-mono-glyph text-slate-400">
+                      {zoneBrief.subtitle} · {zoneBrief.recommended}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">{zoneBrief.lore}</p>
+                  <p className="text-[11px] text-amber-300/90 leading-snug">{zoneBrief.tactical}</p>
+                </section>
+              )}
               <section className="space-y-3">
                 <h3 className="text-sm font-semibold text-[#ECE4D4]">Active Quests</h3>
                 {active.length === 0 ? (
@@ -215,13 +234,13 @@ export const QuestJournalModal: React.FC<QuestJournalModalProps> = ({
                 <div className="flex items-center gap-2">
                   <Skull className="w-4 h-4 text-sky-300" />
                   <span className="text-xs font-semibold text-[#ECE4D4]">
-                    Active Slayer Bonuses ({perks.unlockedSlayers}/{ALL_BESTIARY_LIST.length} Mastered)
+                    Bestiary Mastery ({ranks.unlockedSlayers}/{ALL_BESTIARY_LIST.length} Slayer Ranks)
                   </span>
                 </div>
                 <div className="text-xs font-mono-glyph text-sky-200 tabular-nums">
-                  {activeSlayerList.length > 0
-                    ? activeSlayerList.map((s) => `${s.label} ${s.value}`).join(' · ')
-                    : 'Slay foes to unlock +10% Hunter damage and permanent Slayer stat milestones'}
+                  {ranks.unlockedHunters + ranks.unlockedSlayers > 0
+                    ? `${ranks.unlockedHunters} Hunter · ${ranks.unlockedSlayers} Slayer ranks earned`
+                    : 'Slay foes to earn Hunter and Slayer ranks — lore, tactics and codex honors'}
                 </div>
               </div>
 
@@ -288,10 +307,10 @@ export const QuestJournalModal: React.FC<QuestJournalModalProps> = ({
 
                       <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono-glyph tabular-nums">
                         <span className={hunterDone ? 'text-emerald-300' : 'text-slate-500'}>
-                          [{Math.min(kills, def.hunterKills)}/{def.hunterKills}] {def.hunterBonusLabel}
+                          [{Math.min(kills, def.hunterKills)}/{def.hunterKills}] Hunter Rank
                         </span>
                         <span className={slayerDone ? 'text-amber-300' : 'text-slate-500'}>
-                          [{Math.min(kills, def.slayerKills)}/{def.slayerKills}] {def.slayerBonusLabel}
+                          [{Math.min(kills, def.slayerKills)}/{def.slayerKills}] Slayer Rank
                         </span>
                       </div>
                     </div>

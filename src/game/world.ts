@@ -1,6 +1,6 @@
 import { makeCritter } from './ambient';
 import { scaleEnemyForDifficulty } from './difficulty';
-import { createConsumable, generateInscription, generateProceduralItem } from './loot';
+import { createConsumable, generateProceduralItem } from './loot';
 import { CritterState, Enemy, EnemyArchetype, GroundLoot, SkillId, Tile, TileKind, ZoneId, ZoneMap } from './types';
 
 let enemyIdSeq = 1;
@@ -1260,7 +1260,7 @@ export function generateDungeonFloor(
         }
       }
 
-      // Vault Chests + Relic Inscription + Guard(s)
+      // Vault Chests + Relic + Guard(s)
       tiles[vy + 1][vx + 1] = makeTile(vx + 1, vy + 1, 'chest');
       tiles[vy + 1][vx + 1].interactId = 'vault_chest';
       tiles[vy + 1][vx + 1].label = 'Vault Relic Chest';
@@ -1274,7 +1274,7 @@ export function generateDungeonFloor(
         x: vx + 3,
         y: vy + 1,
         gold: 25 + depth * 12,
-        item: generateInscription(depth + 1, { minRarity: depth >= 4 ? 'Epic' : 'Rare' }),
+        item: generateProceduralItem(depth + 1, { minRarity: depth >= 4 ? 'Epic' : 'Rare' }),
       });
 
       const vaultPool = options?.sideBranch
@@ -1857,7 +1857,7 @@ export interface ZoneContextBrief {
 export function getZoneContext(zoneId: ZoneId, depth: number): ZoneContextBrief {
   if (zoneId === 'oakhaven') {
     return {
-      lore: 'A timber frontier watchpost built around the outer Reliquary stair. Torin’s forge and Mira’s apothecary keep delvers supplied.',
+      lore: 'A sunny timber village built around the outer Reliquary stair. Torin’s forge and Mira’s apothecary keep delvers supplied.',
       tactical: 'Safe Haven · Step out the West Gate (Ω) onto Silverwood Vale Overworld, or descend >> into the Reliquary.',
       recommended: 'Town Sanctuary',
     };
@@ -1935,7 +1935,7 @@ export function getZoneContext(zoneId: ZoneId, depth: number): ZoneContextBrief 
   if (depth === 4) {
     return {
       lore: 'The Inquisitor Crucible burns with cinder wards and high-ranking Reliquary champions.',
-      tactical: 'Unlocks Milestone Prodigies at Lv 6+. Temper equipment to +2/+3 before entering Floor 5.',
+      tactical: 'Unlocks Skill Capstones at Lv 6+. Temper equipment to +2/+3 before entering Floor 5.',
       recommended: 'Lv 6–8',
     };
   }

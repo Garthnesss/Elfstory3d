@@ -61,7 +61,6 @@ export interface PerspectiveCanvasProps {
   zone: ZoneMap;
   player: PlayerState;
   armedSkill: SkillId | null;
-  armedInscriptionRange?: number | null;
   aimedTarget?: { x: number; y: number } | null;
   floatingEffects: FloatingEffect[];
   particles: ParticleBurst[];
@@ -70,6 +69,7 @@ export interface PerspectiveCanvasProps {
   shakeUntil: number;
   tileSize?: number;
   patternSignals?: boolean;
+  questNpcNames?: Set<string>;
   cameraYawIndex?: CameraYawIndex;
   viewMode?: CameraViewMode;
   onCameraYawChange?: (yaw: CameraYawIndex) => void;
@@ -156,7 +156,7 @@ function getTileContextHint(tile: Tile): string | null {
   }
 }
 
-const ZOOM_STEPS = [28, 36, 44] as const;
+const ZOOM_STEPS = [21, 28, 36, 44] as const;
 const VIEW_MODES: Array<{ id: CameraViewMode; label: string; title: string }> = [
   { id: 'tactical', label: 'Top', title: 'Overhead Tactical 3D (V)' },
   { id: 'chase', label: '3rd', title: '3rd Person Chase 3D (V)' },
@@ -223,7 +223,6 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
   zone,
   player,
   armedSkill,
-  armedInscriptionRange,
   aimedTarget,
   floatingEffects,
   particles,
@@ -232,6 +231,7 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
   shakeUntil,
   tileSize: controlledTileSize,
   patternSignals,
+  questNpcNames,
   cameraYawIndex: controlledYawIndex,
   viewMode: controlledViewMode,
   onCameraYawChange,
@@ -334,7 +334,6 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
     zone,
     player,
     armedSkill,
-    armedInscriptionRange: armedInscriptionRange ?? null,
     aimedTarget: aimedTarget ?? null,
     floatingEffects,
     particles,
@@ -342,6 +341,7 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
     hitFlashes,
     shakeUntil,
     patternSignals: patternSignals ?? true,
+    questNpcNames: null as Set<string> | null,
     tileSize: 36,
     showMobileMap: false,
     yawIndex: 0 as CameraYawIndex,
@@ -393,7 +393,6 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
     s.zone = zone;
     s.player = player;
     s.armedSkill = armedSkill;
-    s.armedInscriptionRange = armedInscriptionRange ?? null;
     s.aimedTarget = aimedTarget ?? null;
     s.floatingEffects = floatingEffects;
     s.particles = particles;
@@ -401,6 +400,7 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
     s.hitFlashes = hitFlashes;
     s.shakeUntil = shakeUntil;
     s.patternSignals = patternSignals ?? true;
+    s.questNpcNames = questNpcNames ?? null;
     s.tileSize = tileSize;
     s.showMobileMap = showMobileMap;
     s.yawIndex = yawIndex;
@@ -411,7 +411,7 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
       s.attackPulse = 1;
     }
 
-    if (s.hoverCoord && !armedSkill && !armedInscriptionRange) {
+    if (s.hoverCoord && !armedSkill) {
       s.hoverPath = findPathPoints(
         zone,
         player.x,
@@ -428,14 +428,14 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
     zone,
     player,
     armedSkill,
-    armedInscriptionRange,
-    aimedTarget,
+      aimedTarget,
     floatingEffects,
     particles,
     projectiles,
     hitFlashes,
     shakeUntil,
     patternSignals,
+    questNpcNames,
     tileSize,
     showMobileMap,
     yawIndex,
@@ -842,6 +842,8 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
       const cullRadius = s.viewMode === 'tactical' ? 20 : 24;
       s.cutawaySet.clear();
 
+      const projectedStairs: Array<{ x: number; y: number; kind: 'stairs_down' | 'stairs_up' }> = [];
+      const projectedNpcs: Array<{ npc: NpcPlacement; wx: number; wz: number; quest: boolean }> = [];
       const candidateLights: Array<{
         x: number;
         z: number;
@@ -876,6 +878,10 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
         }
 
         syncTileNode(node, tile, inRange, isCutaway, animFrame, biome, s.zone.depth, mats);
+
+        if (inRange && tile.visible && (tile.kind === 'stairs_down' || tile.kind === 'stairs_up')) {
+          projectedStairs.push({ x: node.x, y: node.y, kind: tile.kind });
+        }
 
         if (inRange && tile.visible) {
           const phase = (node.x * 17 + node.y * 31) * 0.23;
@@ -1054,9 +1060,7 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
       }
 
       let rangeIdx = 0;
-      const activeRange = s.armedSkill
-        ? SKILLS[s.armedSkill].range
-        : s.armedInscriptionRange ?? 0;
+      const activeRange = s.armedSkill ? SKILLS[s.armedSkill].range : 0;
       if (activeRange > 0) {
         const rangeColor = s.armedSkill
           ? SKILLS[s.armedSkill].branch === 'runecaster'
@@ -1102,7 +1106,7 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
         hoverMesh.visible = false;
       }
 
-      if ((s.armedSkill || s.armedInscriptionRange) && s.aimedTarget) {
+      if (s.armedSkill && s.aimedTarget) {
         aimMat.opacity = 0.65 + (reduceMotion ? 0.2 : Math.sin(now * 0.012) * 0.25);
         aimMesh.position.set(s.aimedTarget.x, 0.048, s.aimedTarget.y);
         aimMesh.visible = true;
@@ -1110,7 +1114,7 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
         aimMesh.visible = false;
       }
 
-      if (!s.armedSkill && !s.armedInscriptionRange && s.hoverPath.length > 0) {
+      if (!s.armedSkill && s.hoverPath.length > 0) {
         const count = Math.min(MAX_PATH, s.hoverPath.length);
         const attr = pathLineGeo.getAttribute('position') as THREE.BufferAttribute;
         attr.setXYZ(0, s.heroVisX, 0.08, s.heroVisZ);
@@ -1237,6 +1241,9 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
         if (!ntile?.explored) continue;
         placeShadow(npc.x, npc.y, 0.92);
         entityPool.placeNpc(npc, ntile.visible, s.heroVisX, s.heroVisZ, timeSec);
+        if (ntile.visible) {
+          projectedNpcs.push({ npc, wx: npc.x, wz: npc.y, quest: Boolean(s.questNpcNames?.has(npc.name)) });
+        }
         hitEntities.push({ x: npc.x, y: npc.y, wx: npc.x, wz: npc.y, height: 1.05, radius: 0.38 });
       }
 
@@ -1309,8 +1316,7 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
         !s.zone.isTown &&
         s.player.companion &&
         s.player.companion.hp > 0 &&
-        s.player.companion.respawnCooldown === 0 &&
-        s.player.companion.stance !== 'recall'
+        s.player.companion.respawnCooldown === 0
       ) {
         const comp = s.player.companion;
         const cTile = s.zone.tiles[comp.y]?.[comp.x];
@@ -1522,6 +1528,44 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
             hctx.fillRect(bx - 1, by - 1, barW + 2, 4.5);
             hctx.fillStyle = '#38BDF8';
             hctx.fillRect(bx, by, barW * ratio, 2.5);
+          }
+        }
+
+        // Stairs markers: a bobbing amber diamond over every visible stairway.
+        for (const st of projectedStairs) {
+          const bob = reduceMotion ? 0 : Math.sin(now * 0.004 + st.x * 1.7 + st.y) * 0.06;
+          const pt = projectToScreen(st.x, 0.9 + bob, st.y);
+          if (!pt.visible) continue;
+          hctx.fillStyle = '#F59E0B';
+          hctx.beginPath();
+          hctx.moveTo(pt.sx, pt.sy - 7);
+          hctx.lineTo(pt.sx + 7, pt.sy);
+          hctx.lineTo(pt.sx, pt.sy + 7);
+          hctx.lineTo(pt.sx - 7, pt.sy);
+          hctx.closePath();
+          hctx.fill();
+          hctx.font = '700 9px "JetBrains Mono", monospace';
+          hctx.fillStyle = '#090B10';
+          hctx.textAlign = 'center';
+          hctx.textBaseline = 'middle';
+          hctx.fillText(st.kind === 'stairs_down' ? '▼' : '▲', pt.sx, pt.sy + 0.5);
+        }
+
+        // NPC nameplates; quest givers get an amber diamond above the name.
+        for (const item of projectedNpcs) {
+          const pt = projectToScreen(item.wx, 1.45, item.wz);
+          if (!pt.visible) continue;
+          hctx.font = '600 10px "JetBrains Mono", monospace';
+          hctx.textAlign = 'center';
+          hctx.textBaseline = 'middle';
+          hctx.fillStyle = 'rgba(9, 11, 16, 0.9)';
+          hctx.fillText(item.npc.name, pt.sx + 1, pt.sy + 1);
+          hctx.fillStyle = item.quest ? '#FCD34D' : '#E2E8F0';
+          hctx.fillText(item.npc.name, pt.sx, pt.sy);
+          if (item.quest) {
+            hctx.font = '700 10px "JetBrains Mono", monospace';
+            hctx.fillStyle = '#F59E0B';
+            hctx.fillText('◆', pt.sx, pt.sy - 11);
           }
         }
 
@@ -1855,7 +1899,7 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
       return;
     }
 
-    if (!armedSkill && !armedInscriptionRange) {
+    if (!armedSkill) {
       s.hoverPath = findPathPoints(zone, player.x, player.y, coord.x, coord.y, true, 16);
     } else {
       s.hoverPath = [];
@@ -1915,7 +1959,6 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
     }
   };
 
-  const facingLabel = ['North', 'East', 'South', 'West'][yawIndex];
 
   if (webglError) {
     return (
@@ -1944,7 +1987,7 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
         className={`block w-full h-full touch-none ${
           inspectMode
             ? 'cursor-help'
-            : armedSkill || armedInscriptionRange
+            : armedSkill
               ? 'cursor-crosshair'
               : 'cursor-grab active:cursor-grabbing'
         }`}
@@ -1957,24 +2000,18 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
       {/* Desktop 3D Camera View Mode + Turn + Zoom Controls (Bottom-Left) */}
       <div className="hidden md:flex absolute bottom-3 left-3 z-20 items-center gap-1 rounded border border-white/12 bg-[#0D121A]/88 px-2 py-1 shadow-lg backdrop-blur-sm">
         <Camera className="w-3.5 h-3.5 text-amber-300 mr-0.5" />
-        {VIEW_MODES.map((m) => (
-          <button
-            key={m.id}
-            type="button"
-            title={m.title}
-            onClick={(e) => {
-              e.currentTarget.blur();
-              setViewMode(m.id);
-            }}
-            className={`px-2 py-0.5 rounded text-[11px] font-mono-glyph font-semibold transition-colors cursor-pointer ${
-              viewMode === m.id
-                ? 'bg-amber-500 text-[#0B0D12]'
-                : 'text-slate-300 hover:bg-white/10'
-            }`}
-          >
-            {m.label}
-          </button>
-        ))}
+        <button
+          type="button"
+          title="Toggle camera view (Top / 3rd person)"
+          onClick={(e) => {
+            e.currentTarget.blur();
+            const order: CameraViewMode[] = ['tactical', 'chase'];
+            setViewMode(order[(order.indexOf(viewMode) + 1) % order.length]);
+          }}
+          className="px-2 py-0.5 rounded text-[11px] font-mono-glyph font-semibold bg-amber-500 text-[#0B0D12] transition-colors cursor-pointer"
+        >
+          {VIEW_MODES.find((m) => m.id === viewMode)?.label ?? 'Top'}
+        </button>
 
         <div className="w-px h-4 bg-white/12 mx-1" />
 
@@ -1990,9 +2027,6 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
         >
           <RotateCcw className="w-3.5 h-3.5" />
         </button>
-        <span className="text-[10px] font-mono-glyph text-slate-300 px-1 min-w-[38px] text-center">
-          {facingLabel}
-        </span>
         <button
           type="button"
           onClick={(e) => {
@@ -2132,31 +2166,14 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
         </div>
       )}
 
-      {!armedSkill && armedInscriptionRange && (
-        <div className="absolute top-12 md:top-2.5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 max-w-[94vw] px-3 py-1.5 rounded border border-sky-400/50 bg-[#0B0D12]/94 text-[11px] sm:text-xs font-medium text-sky-200 shadow-lg">
-          <span className="truncate">
-            Phase Door Rune (Range {armedInscriptionRange}) · Tap tile
-          </span>
-          {onCancelTargeting && (
-            <button
-              type="button"
-              onClick={onCancelTargeting}
-              className="min-h-[44px] md:min-h-0 px-3 py-1 rounded bg-white/10 hover:bg-white/20 text-[#ECE4D4] text-[11px] font-semibold shrink-0 cursor-pointer"
-            >
-              Cancel
-            </button>
-          )}
-        </div>
-      )}
-
-      {inspectMode && !armedSkill && !armedInscriptionRange && (
+      {inspectMode && !armedSkill && (
         <div className="pointer-events-none absolute top-12 left-1/2 -translate-x-1/2 z-20 px-3 py-1 rounded border border-amber-400/45 bg-[#0B0D12]/90 text-[11px] text-amber-200 whitespace-nowrap">
           Look Mode · Tap any explored tile to inspect
         </div>
       )}
 
       {(() => {
-        if (armedSkill || armedInscriptionRange || inspectMode) return null;
+        if (armedSkill || inspectMode) return null;
         const visibleBosses = zone.enemies
           .filter(
             (e) =>
@@ -2191,11 +2208,6 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
                 style={{ transform: `scaleX(${hpPct / 100})` }}
               />
             </div>
-            {boss.intent && (
-              <div className="mt-1 text-[10px] font-medium text-rose-300 truncate">
-                Intent: {boss.intent.label} ({boss.intent.damage} dmg)
-              </div>
-            )}
           </div>
         );
       })()}
@@ -2268,7 +2280,7 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
                 </span>
               </div>
               <div className="text-[11px] text-slate-300">
-                Stance: <span className="capitalize text-amber-200">{hoverInfo.companion.stance}</span> · Step onto tile to swap
+                Step onto tile to swap
               </div>
             </div>
           ) : hoverInfo.npc ? (

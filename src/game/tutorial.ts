@@ -32,7 +32,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
   {
     id: 'skills',
     title: 'Use your skills',
-    body: 'Your hotbar skills sit on keys 1–5, Inscription runes on 6–8. Open Skills [K] to spend the points you earn from levels, and check enemy intents with Look before you commit.',
+    body: 'Your hotbar skills sit on keys 1–5. Open Skills [K] to spend the points you earn from levels, and check enemy intents with Look before you commit.',
   },
   {
     id: 'potion',

@@ -10,7 +10,7 @@
 // single-key actions the App.tsx keyboard handler implements — no invented
 // actions. Fixed (never remappable): arrow keys always move (hardcoded
 // fallback), Enter always interacts/confirms, Escape, Tab (cycle target),
-// and the number row 1–8 for skills/runes/inscriptions.
+// and the number row 1–5 for skills.
 
 export type KeyAction =
   | 'moveUp'

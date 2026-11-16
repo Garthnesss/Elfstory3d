@@ -1,4 +1,3 @@
-import { computeBestiaryPerks } from './codex';
 import {
   AttributeKey,
   Attributes,
@@ -377,11 +376,6 @@ export function getEquippedSetCounts(player: PlayerState): Record<RelicSetId, nu
   return counts;
 }
 
-export function getActiveRelicSets(player: PlayerState): RelicSetId[] {
-  const counts = getEquippedSetCounts(player);
-  return (Object.keys(counts) as RelicSetId[]).filter((id) => counts[id] >= 2);
-}
-
 export function computeDerivedStats(player: PlayerState, worldFlags?: WorldFlags): DerivedStats {
   const { might, agility, arcana, resolve } = player.attributes;
   let maxHp = 34 + (player.level - 1) * 6 + might * 5 + resolve * 6 + (player.bonusHp ?? 0);
@@ -445,50 +439,13 @@ export function computeDerivedStats(player: PlayerState, worldFlags?: WorldFlags
     spellPower += 8;
   }
 
-  const activeSets = getActiveRelicSets(player);
-  if (activeSets.includes('starlight_outrider')) {
-    atk += 4;
-    critChance += 8;
-    dodgeChance += 6;
-    maxHp += 10;
-  }
-  if (activeSets.includes('cinderforged')) {
-    def += 4;
-    spellPower += 6;
-    thorns += 6;
-    maxHp += 15;
-  }
-  if (activeSets.includes('thornbound')) {
-    atk += 3;
-    thorns += 4;
-    lifesteal += 3;
-    maxHp += 12;
-  }
-  if (activeSets.includes('rimebound')) {
-    def += 5;
-    dodgeChance += 8;
-    maxMana += 10;
-    maxHp += 8;
-  }
-
-  if (player.companion && player.companion.hp > 0 && player.companion.stance !== 'recall') {
+  if (player.companion && player.companion.hp > 0) {
     if (player.companion.kind === 'silverwind_lynx') {
       critChance += 3;
     } else if (player.companion.kind === 'starlight_owl') {
       spellPower += 2;
     }
   }
-
-  const bestiary = computeBestiaryPerks(worldFlags);
-  maxHp += bestiary.slayerStats.maxHp ?? 0;
-  maxMana += bestiary.slayerStats.maxMana ?? 0;
-  atk += bestiary.slayerStats.atk ?? 0;
-  def += bestiary.slayerStats.def ?? 0;
-  spellPower += bestiary.slayerStats.spellPower ?? 0;
-  critChance += bestiary.slayerStats.critChance ?? 0;
-  dodgeChance += bestiary.slayerStats.dodgeChance ?? 0;
-  lifesteal += bestiary.slayerStats.lifesteal ?? 0;
-  thorns += bestiary.slayerStats.thorns ?? 0;
 
   for (const st of player.statuses) {
     if (st.kind === 'shielded') {
@@ -565,9 +522,9 @@ export const PRODIGIES: Record<ProdigyId, ProdigyDef> = {
     pillar: 'Hybrid',
     requirementLabel: 'Level 6+ · Arcana 5 · Resolve 5',
     requirements: { arcana: 5, resolve: 5 },
-    summary: 'Channel spells and Runes in an unbroken cycle.',
+    summary: 'Channel spells in an unbroken cycle.',
     effectNote:
-      '+8 Spell Power; casting any Runecaster skill or Rune Inscription shaves 1 turn off all other cooldowns.',
+      '+8 Spell Power; casting any Runecaster skill shaves 1 turn off all other cooldowns.',
   },
   spine_of_world: {
     id: 'spine_of_world',
@@ -584,6 +541,9 @@ export const PRODIGIES: Record<ProdigyId, ProdigyDef> = {
 
 export const ALL_PRODIGIES_LIST: ProdigyDef[] = Object.values(PRODIGIES);
 
+/** Capstones are part of the skill tree now: bought with Skill Points. */
+export const PRODIGY_SKILL_COST = 2;
+
 export function hasProdigy(player: PlayerState, id: ProdigyId): boolean {
   return Boolean(player.prodigies?.includes(id));
 }
@@ -597,10 +557,10 @@ export function canLearnProdigy(
   }
   const def = PRODIGIES[id];
   if (player.level < 6) {
-    return { ok: false, reason: 'Unlocks at Level 6 & Level 10' };
+    return { ok: false, reason: 'Unlocks at Level 6' };
   }
-  if ((player.prodigyPoints ?? 0) <= 0) {
-    return { ok: false, reason: 'Requires 1 Prodigy Point (Lv 6 / Lv 10)' };
+  if ((player.skillPoints ?? 0) < PRODIGY_SKILL_COST) {
+    return { ok: false, reason: `Costs ${PRODIGY_SKILL_COST} Skill Points` };
   }
   for (const [attr, req] of Object.entries(def.requirements)) {
     const cur = player.attributes[attr as AttributeKey] ?? 0;

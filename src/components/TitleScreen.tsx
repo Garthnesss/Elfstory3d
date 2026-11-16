@@ -99,7 +99,7 @@ const STARTER_CLASSES: Array<{
     name: 'Wanderer',
     glyph: '➶',
     focus: 'Balanced Hybrid & Viper Edge',
-    stats: 'Might 2 · Agility 2 · Arcana 2 · Resolve 1 · Balanced Inscription Kit',
+    stats: 'Might 2 · Agility 2 · Arcana 2 · Resolve 1 · Balanced Kit',
     lore: 'A seasoned frontier ranger who mixes venom-tipped darts, wild infusions, and quick steel as the ruin demands.',
   },
 ];
@@ -271,7 +271,7 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
               <p className="text-sm text-[#D6CEBE] leading-relaxed max-w-lg">
                 An elven outrider drawn south by the awakening of the Ashen Glyph, <span className="text-amber-200 font-medium">Garth &ldquo;Big Dick&rdquo; Elfstrom</span> descends
                 beneath Oakhaven Outpost and Highspire Citadel. Read enemy windups, inscribe cooldown Runes &amp; Infusions,
-                claim Milestone Prodigies, and confront Sovereign Malakor.
+                claim Skill Capstones, and confront Sovereign Malakor.
               </p>
             </div>
 

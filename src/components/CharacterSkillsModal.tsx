@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { X } from 'lucide-react';
 import {
   ALL_PRODIGIES_LIST,
@@ -33,11 +33,9 @@ export const CharacterSkillsModal: React.FC<CharacterSkillsModalProps> = ({
   onClaimProdigy,
   onClose,
 }) => {
-  const [tab, setTab] = useState<'skills' | 'prodigies'>('skills');
   const derived = computeDerivedStats(player, worldFlags);
   const branches: SkillBranch[] = ['vanguard', 'shadowcraft', 'runecaster'];
   const attrs: AttributeKey[] = ['might', 'agility', 'arcana', 'resolve'];
-  const prodigyPts = player.prodigyPoints ?? 0;
 
   return (
     <div className="fixed inset-0 z-40 bg-black/75 flex items-center justify-center p-2.5 sm:p-5">
@@ -52,37 +50,11 @@ export const CharacterSkillsModal: React.FC<CharacterSkillsModalProps> = ({
               Level {player.level} · {derived.buildTitle} · XP {player.xp}/{player.xpToNext} ·{' '}
               <span className="text-amber-300 font-medium">
                 {player.attributePoints} Attr · {player.skillPoints} Skill
-                {prodigyPts > 0 ? ` · ${prodigyPts} Prodigy` : ''}
               </span>
             </p>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="flex items-center gap-1 p-1 rounded bg-[#0A0D14] border border-white/10">
-              <button
-                type="button"
-                onClick={() => setTab('skills')}
-                className={`min-h-[44px] px-2.5 sm:px-3 py-1 rounded text-xs font-medium cursor-pointer transition-colors ${
-                  tab === 'skills' ? 'bg-amber-500 text-[#0B0D12]' : 'text-slate-300 hover:text-white'
-                }`}
-              >
-                Attributes & Skills
-              </button>
-              <button
-                type="button"
-                onClick={() => setTab('prodigies')}
-                className={`min-h-[44px] px-2.5 sm:px-3 py-1 rounded text-xs font-medium cursor-pointer transition-colors ${
-                  tab === 'prodigies'
-                    ? 'bg-violet-500 text-[#0B0D12]'
-                    : prodigyPts > 0
-                      ? 'text-violet-300 hover:text-white'
-                      : 'text-slate-300 hover:text-white'
-                }`}
-              >
-                Prodigies{prodigyPts > 0 ? ` (${prodigyPts})` : ''}
-              </button>
-            </div>
-
             <button
               type="button"
               onClick={onClose}
@@ -95,8 +67,8 @@ export const CharacterSkillsModal: React.FC<CharacterSkillsModalProps> = ({
         </div>
 
         {/* Body */}
-        {tab === 'skills' ? (
-          <div className="flex-1 overflow-y-auto rpg-scroll p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
+        <div className="flex-1 overflow-y-auto rpg-scroll">
+          <div className="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
             {/* Attributes & Derived Combat Telemetry */}
             <div className="lg:col-span-4 space-y-5">
               <section className="space-y-2.5">
@@ -280,19 +252,19 @@ export const CharacterSkillsModal: React.FC<CharacterSkillsModalProps> = ({
               })}
             </div>
           </div>
-        ) : (
-          <div className="flex-1 overflow-y-auto rpg-scroll p-4 sm:p-6 space-y-5">
+
+          <div className="px-4 sm:px-6 pb-6 space-y-5">
             <div className="p-4 rounded border border-violet-400/25 bg-[#151226] flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h3 className="font-display text-base font-bold text-violet-200">
-                  Build-Defining Milestone Prodigies
+                  Build-Defining Capstones
                 </h3>
                 <p className="text-xs text-slate-300 mt-1">
-                  Earned at Level 6 and Level 10. Prodigies reshape your hero permanently and stack with every skill tree.
+                  Unlocked at Level 6 and bought with Skill Points (2 each). Capstones reshape your hero permanently and stack with every skill tree.
                 </p>
               </div>
               <div className="font-mono-glyph text-xs text-violet-300 tabular-nums">
-                {prodigyPts} Prodigy Point{prodigyPts === 1 ? '' : 's'} Available · {(player.prodigies ?? []).length}/2 Claimed
+                {player.skillPoints} Skill Point{player.skillPoints === 1 ? '' : 's'} Available · {(player.prodigies ?? []).length} Claimed
               </div>
             </div>
 
@@ -356,7 +328,7 @@ export const CharacterSkillsModal: React.FC<CharacterSkillsModalProps> = ({
               })}
             </div>
           </div>
-        )}
+        </div>
 
         {/* Footer Tip */}
         <div className="px-4 py-2.5 sm:px-6 sm:py-3 border-t border-white/10 text-[11px] sm:text-xs text-slate-400 flex flex-wrap items-center justify-between gap-2 sm:gap-4">

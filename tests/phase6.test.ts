@@ -212,11 +212,6 @@ test('Phase 6 coach-marks: each mark fires exactly once per device', () => {
   assert.equal(claimCoachMark('telegraph', storage), false); // never again
   assert.equal(claimCoachMark('telegraph', storage), false);
   assert.equal(storage._map.get(COACH_MARK_KEYS.telegraph), '1');
-  // Flags are independent per mark.
-  assert.equal(coachMarkSeen('prodigy', storage), false);
-  assert.equal(claimCoachMark('prodigy', storage), true);
-  assert.equal(claimCoachMark('inscription', storage), true);
-  assert.equal(claimCoachMark('prodigy', storage), false);
   // No storage (private mode etc.) = never claim, never nag.
   assert.equal(claimCoachMark('telegraph', null), false);
   assert.equal(coachMarkSeen('telegraph', null), true);
