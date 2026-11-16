@@ -177,6 +177,16 @@ export function createEntity3DPool(parentGroup: THREE.Group): Entity3DPool {
       );
     }
 
+    // Arms (cultists hide theirs under the robe cone)
+    if (style !== 'cultist') {
+      const armW = isBrute ? 0.13 : isSkel ? 0.055 : 0.09;
+      body.add(makePart(geo.box, mArm, armW, 0.3, armW + 0.01, -torsoW * 0.62, torsoY + 0.02, 0));
+      const rArm = makePart(geo.box, mArm, armW, 0.3, armW + 0.01, torsoW * 0.62, torsoY + 0.04, -0.05);
+      rArm.rotation.x = -0.5;
+      body.add(rArm);
+      body.add(makePart(geo.box, mSkin, 0.07, 0.07, 0.07, -torsoW * 0.62, torsoY - 0.14, 0));
+    }
+
     // Head + Glowing Eyes (-Z is forward!)
     const headY = legH + torsoH + 0.14;
     const headS = isBrute ? 0.25 : 0.22;
@@ -431,6 +441,12 @@ export function createEntity3DPool(parentGroup: THREE.Group): Entity3DPool {
     const mDark = makeLambert(0x1e293b, flashMats, origColors);
     const mGold = makeLambert(0xfbbf24, flashMats, origColors);
     const mEye = getBasic(0x0f172a);
+    const mLeaf = makeLambert(0x22c55e, flashMats, origColors);
+    const mSteel = makeLambert(0x94a3b8, flashMats, origColors);
+    const mWhite = makeLambert(0xf8fafc, flashMats, origColors);
+    const mBrown = makeLambert(0x92400e, flashMats, origColors);
+    const mRed = makeLambert(0xdc2626, flashMats, origColors);
+    const mStraw = makeLambert(0xd6b25e, flashMats, origColors);
 
     // Boots & Tunic
     const leftLimb = new THREE.Group();
@@ -444,6 +460,14 @@ export function createEntity3DPool(parentGroup: THREE.Group): Entity3DPool {
     body.add(makePart(geo.box, mTunic, 0.3, 0.36, 0.2, 0, 0.44, 0));
     body.add(makePart(geo.box, mGold, 0.32, 0.05, 0.22, 0, 0.32, 0));
 
+    // Arms (sleeves) + hands — role props below sit at hand height
+    body.add(
+      makePart(geo.box, mTunic, 0.08, 0.3, 0.09, -0.19, 0.47, 0),
+      makePart(geo.box, mTunic, 0.08, 0.3, 0.09, 0.19, 0.47, 0),
+      makePart(geo.box, mSkin, 0.07, 0.07, 0.08, -0.19, 0.3, 0),
+      makePart(geo.box, mSkin, 0.07, 0.07, 0.08, 0.19, 0.3, 0)
+    );
+
     // Head + Eyes
     body.add(makePart(geo.box, mSkin, 0.22, 0.22, 0.22, 0, 0.74, 0));
     body.add(
@@ -451,12 +475,18 @@ export function createEntity3DPool(parentGroup: THREE.Group): Entity3DPool {
       makePart(geo.box, mEye, 0.04, 0.04, 0.03, 0.05, 0.75, -0.11, false)
     );
 
-    // Role distinction
+    // Role distinction — one signature silhouette per named NPC
     if (npc.id === 'torin') {
       // Blacksmith hood & hammer
       body.add(makePart(geo.box, mDark, 0.24, 0.08, 0.24, 0, 0.87, 0));
       body.add(makePart(geo.box, mDark, 0.05, 0.32, 0.05, 0.22, 0.5, -0.12));
       body.add(makePart(geo.box, mGold, 0.16, 0.1, 0.1, 0.22, 0.66, -0.12));
+    } else if (npc.id === 'halda') {
+      // Forgemistress: apron, ember headband, steel hammer (left hand)
+      body.add(makePart(geo.box, mDark, 0.24, 0.3, 0.03, 0, 0.42, -0.115));
+      body.add(makePart(geo.box, mRed, 0.24, 0.05, 0.24, 0, 0.8, 0));
+      body.add(makePart(geo.box, mDark, 0.05, 0.32, 0.05, -0.22, 0.5, -0.12));
+      body.add(makePart(geo.box, mSteel, 0.16, 0.1, 0.1, -0.22, 0.66, -0.12));
     } else if (npc.id === 'lyra' || npc.id === 'orin') {
       // Wizard/Archivist pointed hat + orb staff
       body.add(makePart(geo.cone, mTunic, 0.34, 0.26, 0.34, 0, 0.96, 0));
@@ -467,9 +497,84 @@ export function createEntity3DPool(parentGroup: THREE.Group): Entity3DPool {
       const hood = makePart(geo.cone, mDark, 0.3, 0.24, 0.3, 0, 0.88, 0.02);
       hood.rotation.x = 0.2;
       body.add(hood);
+    } else if (npc.id === 'mira') {
+      // Herbalist: leaf circlet + herb bundle in hand
+      body.add(makePart(geo.box, mLeaf, 0.24, 0.05, 0.24, 0, 0.83, 0));
+      body.add(makePart(geo.cone, mLeaf, 0.1, 0.17, 0.1, -0.22, 0.38, -0.05));
+    } else if (npc.id === 'vance') {
+      // Warden: steel helm + spear
+      body.add(makePart(geo.box, mSteel, 0.25, 0.09, 0.25, 0, 0.87, 0));
+      body.add(makePart(geo.cyl, mBrown, 0.035, 0.85, 0.035, 0.24, 0.52, -0.08));
+      body.add(makePart(geo.cone, mSteel, 0.07, 0.15, 0.07, 0.24, 1.0, -0.08));
+    } else if (npc.id === 'darek') {
+      // Captain: plumed helm + shield
+      body.add(makePart(geo.box, mSteel, 0.25, 0.09, 0.25, 0, 0.87, 0));
+      body.add(makePart(geo.box, mRed, 0.05, 0.09, 0.22, 0, 0.94, 0.02));
+      body.add(makePart(geo.box, mSteel, 0.05, 0.27, 0.23, -0.25, 0.42, -0.03));
+    } else if (npc.id === 'wren') {
+      // Sister: white cowl + gold holy emblem
+      body.add(makePart(geo.box, mWhite, 0.25, 0.1, 0.25, 0, 0.86, 0.01));
+      body.add(makePart(geo.oct, mGold, 0.09, 0.09, 0.04, 0, 0.52, -0.12, false));
+    } else if (npc.id === 'pell') {
+      // Carter: wide-brim hat + hip satchel
+      body.add(makePart(geo.cyl, mBrown, 0.35, 0.04, 0.35, 0, 0.85, 0));
+      body.add(makePart(geo.box, mBrown, 0.2, 0.08, 0.2, 0, 0.89, 0));
+      body.add(makePart(geo.box, mBrown, 0.14, 0.16, 0.08, -0.2, 0.36, 0.07));
+    } else if (npc.id === 'rowan') {
+      // Wayfarer: green hood + back quiver
+      const hood = makePart(geo.cone, mLeaf, 0.3, 0.24, 0.3, 0, 0.88, 0.02);
+      hood.rotation.x = 0.2;
+      body.add(hood);
+      const quiver = makePart(geo.cyl, mBrown, 0.09, 0.3, 0.09, 0.1, 0.5, 0.15);
+      quiver.rotation.x = 0.4;
+      body.add(quiver);
+    } else if (npc.id === 'sylva') {
+      // Elder: flower crown + gnarled staff with a leaf-green orb
+      body.add(makePart(geo.cone, mGold, 0.06, 0.08, 0.06, -0.08, 0.88, -0.04));
+      body.add(makePart(geo.cone, mLeaf, 0.06, 0.08, 0.06, 0, 0.89, -0.06));
+      body.add(makePart(geo.cone, mRed, 0.06, 0.08, 0.06, 0.08, 0.88, -0.04));
+      body.add(makePart(geo.cyl, mBrown, 0.04, 0.78, 0.04, 0.22, 0.42, -0.1));
+      body.add(makePart(geo.oct, mLeaf, 0.11, 0.11, 0.11, 0.22, 0.86, -0.1, false));
+    } else if (npc.id === 'kaelen') {
+      // Guildmaster: gold pauldrons + cape panel
+      body.add(makePart(geo.box, mGold, 0.14, 0.1, 0.24, -0.2, 0.58, 0));
+      body.add(makePart(geo.box, mGold, 0.14, 0.1, 0.24, 0.2, 0.58, 0));
+      body.add(makePart(geo.box, mRed, 0.28, 0.44, 0.03, 0, 0.38, 0.12));
+    } else if (npc.id === 'bram') {
+      // Salvager: eyepatch + flat cap + belt pouch
+      body.add(makePart(geo.box, mDark, 0.09, 0.06, 0.03, 0.05, 0.75, -0.11));
+      body.add(makePart(geo.box, mDark, 0.24, 0.07, 0.24, 0, 0.87, 0));
+      body.add(makePart(geo.box, mBrown, 0.1, 0.12, 0.06, 0.16, 0.3, -0.1));
+    } else if (npc.id === 'corvus') {
+      // Feathered shoulders + a tiny crow riding the left one
+      const lSh = makePart(geo.cone, mDark, 0.16, 0.18, 0.16, -0.17, 0.62, 0);
+      lSh.rotation.z = 0.5;
+      const rSh = makePart(geo.cone, mDark, 0.16, 0.18, 0.16, 0.17, 0.62, 0);
+      rSh.rotation.z = -0.5;
+      body.add(lSh, rSh);
+      body.add(makePart(geo.sphere, mDark, 0.09, 0.08, 0.11, -0.2, 0.72, 0));
+      const beak = makePart(geo.cone, mGold, 0.03, 0.05, 0.03, -0.2, 0.72, -0.08);
+      beak.rotation.x = -Math.PI / 2;
+      body.add(beak);
+    } else if (npc.id === 'fenwick') {
+      // Straw sun hat
+      body.add(makePart(geo.cyl, mStraw, 0.36, 0.035, 0.36, 0, 0.85, 0));
+      body.add(makePart(geo.box, mStraw, 0.2, 0.09, 0.2, 0, 0.9, 0));
+    } else if (npc.id === 'sella') {
+      // Hair bun + carry basket
+      body.add(makePart(geo.sphere, mDark, 0.11, 0.11, 0.11, 0, 0.88, 0.07));
+      body.add(makePart(geo.box, mBrown, 0.16, 0.12, 0.12, -0.22, 0.3, -0.04));
+    } else if (npc.id === 'tomas') {
+      // Red scarf + cap
+      body.add(makePart(geo.box, mRed, 0.2, 0.07, 0.2, 0, 0.62, 0));
+      body.add(makePart(geo.box, mDark, 0.24, 0.08, 0.24, 0, 0.87, 0));
     } else {
-      // Hair / cap
-      body.add(makePart(geo.box, mDark, 0.24, 0.09, 0.24, 0, 0.86, 0.01));
+      // Hair / cap — colour varies per NPC so townsfolk differ at a glance
+      const hairPalette = [0x1e293b, 0x78350f, 0xb45309, 0x9ca3af, 0x451a03, 0xd6d3d1];
+      let h = 0;
+      for (const ch of npc.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+      const mHair = makeLambert(hairPalette[h % hairPalette.length], flashMats, origColors);
+      body.add(makePart(geo.box, mHair, 0.24, 0.09, 0.24, 0, 0.86, 0.01));
     }
 
     parentGroup.add(group);
@@ -499,6 +604,13 @@ export function createEntity3DPool(parentGroup: THREE.Group): Entity3DPool {
       const mWing = makeLambert(0x38bdf8, flashMats, origColors);
       const mEye = getBasic(0xfbbf24);
       body.add(makePart(geo.sphere, mFeather, 0.24, 0.32, 0.22, 0, 0.62, 0));
+      body.add(
+        makePart(geo.cone, mFeather, 0.05, 0.09, 0.05, -0.07, 0.8, 0),
+        makePart(geo.cone, mFeather, 0.05, 0.09, 0.05, 0.07, 0.8, 0)
+      );
+      const beak = makePart(geo.cone, getBasic(0xf59e0b), 0.05, 0.06, 0.05, 0, 0.65, -0.12, false);
+      beak.rotation.x = Math.PI;
+      body.add(beak);
       body.add(
         makePart(geo.box, mEye, 0.04, 0.04, 0.03, -0.05, 0.68, -0.11, false),
         makePart(geo.box, mEye, 0.04, 0.04, 0.03, 0.05, 0.68, -0.11, false)

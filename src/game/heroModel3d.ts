@@ -143,6 +143,15 @@ export function createHeroModel3D(): HeroModel3D {
   helmCrest.position.set(0, 0.18, 0.02);
 
   headGroup.add(headMesh, hairBack, hairTop, lEar, rEar, helmCap, helmCrest);
+
+  // Eyes (front is -Z, same convention as NPCs/enemies)
+  const eyeMat = trackMat(new THREE.MeshBasicMaterial({ color: 0x0f172a }));
+  const eyeGeo = trackGeo(new THREE.BoxGeometry(0.035, 0.045, 0.02));
+  const lEye = new THREE.Mesh(eyeGeo, eyeMat);
+  lEye.position.set(-0.05, 0.01, -0.115);
+  const rEye = new THREE.Mesh(eyeGeo, eyeMat);
+  rEye.position.set(0.05, 0.01, -0.115);
+  headGroup.add(lEye, rEye);
   bodyGroup.add(headGroup);
 
   // Arms
@@ -154,6 +163,10 @@ export function createHeroModel3D(): HeroModel3D {
   const lArmMesh = makeShadowMesh(armGeo, armorMat);
   lArmMesh.position.y = -0.11;
   leftArm.add(lArmMesh);
+  const handGeo = trackGeo(new THREE.BoxGeometry(0.08, 0.08, 0.09));
+  const lHand = makeShadowMesh(handGeo, skinMat);
+  lHand.position.y = -0.27;
+  leftArm.add(lHand);
 
   const shieldGroup = new THREE.Group();
   shieldGroup.position.set(-0.07, -0.14, -0.06);
@@ -174,6 +187,9 @@ export function createHeroModel3D(): HeroModel3D {
   const rArmMesh = makeShadowMesh(armGeo, armorMat);
   rArmMesh.position.y = -0.11;
   rightArm.add(rArmMesh);
+  const rHand = makeShadowMesh(handGeo, skinMat);
+  rHand.position.y = -0.27;
+  rightArm.add(rHand);
 
   // Sword mesh
   const swordGroup = new THREE.Group();
