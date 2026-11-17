@@ -2,6 +2,7 @@ import {
   AttributeKey,
   Attributes,
   DerivedStats,
+  ItemStats,
   PlayerState,
   ProdigyDef,
   ProdigyId,
@@ -376,6 +377,17 @@ export function getEquippedSetCounts(player: PlayerState): Record<RelicSetId, nu
   return counts;
 }
 
+// Audit Tier 2: the 2-piece relic set bonuses are live again. The Pack's
+// set cards have always promised exactly these numbers (RELIC_SETS
+// bonusLabel in loot.ts); the Nov 15 cut pass removed the application,
+// not the text — so the chase had no payoff and the cards quietly lied.
+export const RELIC_SET_BONUSES: Record<RelicSetId, Partial<ItemStats>> = {
+  starlight_outrider: { atk: 4, critChance: 8, dodgeChance: 6, maxHp: 10 },
+  cinderforged: { def: 4, spellPower: 6, thorns: 6, maxHp: 15 },
+  thornbound: { atk: 3, thorns: 4, lifesteal: 3, maxHp: 12 },
+  rimebound: { def: 5, dodgeChance: 8, maxMana: 10, maxHp: 8 },
+};
+
 export function computeDerivedStats(player: PlayerState, worldFlags?: WorldFlags): DerivedStats {
   const { might, agility, arcana, resolve } = player.attributes;
   let maxHp = 34 + (player.level - 1) * 6 + might * 5 + resolve * 6 + (player.bonusHp ?? 0);
@@ -400,6 +412,21 @@ export function computeDerivedStats(player: PlayerState, worldFlags?: WorldFlags
     dodgeChance += s.dodgeChance ?? 0;
     lifesteal += s.lifesteal ?? 0;
     thorns += s.thorns ?? 0;
+  }
+
+  const setCounts = getEquippedSetCounts(player);
+  for (const setId of Object.keys(RELIC_SET_BONUSES) as RelicSetId[]) {
+    if ((setCounts[setId] ?? 0) < 2) continue;
+    const b = RELIC_SET_BONUSES[setId];
+    maxHp += b.maxHp ?? 0;
+    maxMana += b.maxMana ?? 0;
+    atk += b.atk ?? 0;
+    def += b.def ?? 0;
+    spellPower += b.spellPower ?? 0;
+    critChance += b.critChance ?? 0;
+    dodgeChance += b.dodgeChance ?? 0;
+    lifesteal += b.lifesteal ?? 0;
+    thorns += b.thorns ?? 0;
   }
 
   const bloodRank = player.skills.bloodlust ?? 0;

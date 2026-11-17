@@ -780,9 +780,11 @@ export function upgradeEquipmentItem(item: Item): Item {
 }
 
 export function getSalvageGoldYield(item: Item): number {
-  const base =
-    item.rarity === 'Common' ? 3 : item.rarity === 'Uncommon' ? 6 : item.rarity === 'Rare' ? 12 : item.rarity === 'Epic' ? 20 : 32;
-  return base + item.upgradeLevel * 5;
+  // Audit Tier 2: salvage pays the merchant sell price (55% of value,
+  // which already includes the temper premium). The old flat rarity
+  // table (3-32g) made the convenient in-Pack option a trap — strictly
+  // worse than walking to a merchant for nearly everything Uncommon+.
+  return Math.max(4, Math.round(item.value * 0.55));
 }
 
 export function formatStatList(stats: ItemStats): Array<{ label: string; value: string; key: keyof ItemStats; num: number }> {

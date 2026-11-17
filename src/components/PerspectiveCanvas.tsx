@@ -473,7 +473,7 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
     scene.add(dirLight);
     scene.add(dirLight.target);
 
-    const playerLight = new THREE.PointLight(0xffb347, 4.2, 12.0, 1.3);
+    const playerLight = new THREE.PointLight(0xffb347, 4.2, 15.0, 1.15);
     scene.add(playerLight);
 
     const envLights: THREE.PointLight[] = Array.from({ length: 7 }, () => {
@@ -740,7 +740,7 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
         }
 
         scene.background = new THREE.Color(atmo.bgHex);
-        const fogMul = s.zone.depth >= 1 && !s.zone.isTown ? 1.45 : 0.72;
+        const fogMul = s.zone.depth >= 1 && !s.zone.isTown ? 1.2 : 0.72;
         scene.fog = new THREE.FogExp2(atmo.fogHex, atmo.fogDensity * fogMul);
         hemiLight.color.setHex(atmo.skyHex);
         hemiLight.groundColor.setHex(atmo.groundHex);
@@ -984,7 +984,7 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
 
       playerLight.position.set(s.heroVisX, 1.35, s.heroVisZ);
       const pFlicker = reduceMotion ? 1 : 0.92 + Math.sin(now * 0.005) * 0.08;
-      playerLight.intensity = (s.zone.isTown ? 2.6 : 4.5) * pFlicker;
+      playerLight.intensity = (s.zone.isTown ? 2.6 : 5.2) * pFlicker;
 
       candidateLights.sort((a, b) => a.distSq - b.distSq);
       for (let i = 0; i < envLights.length; i++) {
@@ -1599,7 +1599,7 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
         const showDesktopMap = viewW >= 768 && viewH >= 320;
         const showCompactMobileMap = viewW < 768 && s.showMobileMap;
         if (showDesktopMap || showCompactMobileMap) {
-          const cell = showDesktopMap ? 3 : 2.5;
+          const cell = showDesktopMap ? 4 : 3;
           const mmW = s.zone.width * cell;
           const mmH = s.zone.height * cell;
           const mmX = viewW - mmW - (showDesktopMap ? 14 : 10);
@@ -1616,7 +1616,7 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
               const t = s.zone.tiles[my][mx];
               if (!t.explored) continue;
               if (t.kind === 'wall') {
-                hctx.fillStyle = t.visible ? '#475569' : '#232936';
+                hctx.fillStyle = t.visible ? '#475569' : '#2E3850';
               } else if (t.kind === 'vault_door') {
                 hctx.fillStyle = '#FB923C';
               } else if (t.kind === 'stairs_down' || t.kind === 'gate_city') {
@@ -1626,7 +1626,7 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
               } else if (t.kind === 'shrine' || t.kind === 'whispering_bell') {
                 hctx.fillStyle = '#A78BFA';
               } else {
-                hctx.fillStyle = t.visible ? '#1D2433' : '#121620';
+                hctx.fillStyle = t.visible ? '#2A3448' : '#1A2130';
               }
               hctx.fillRect(mmX + mx * cell, mmY + my * cell, cell, cell);
             }

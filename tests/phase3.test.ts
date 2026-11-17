@@ -369,7 +369,7 @@ test('Phase 3 traps: Venom Dart Snares join Spike Snares from depth 2 down', () 
 
 // ------------------------------------------------------- relic sets
 
-test('Phase 3 relic sets: pool is 4 sets / 8 pieces; set identity grants no stat bonus', () => {
+test('Phase 3 relic sets: pool is 4 sets / 8 pieces; a matched pair grants its 2-piece bonus (restored in Audit Tier 2)', () => {
   assert.deepEqual(Object.keys(RELIC_SETS).sort(), ['cinderforged', 'rimebound', 'starlight_outrider', 'thornbound']);
   for (const set of Object.values(RELIC_SETS)) assert.equal(set.pieces.length, 2);
 
@@ -402,8 +402,11 @@ test('Phase 3 relic sets: pool is 4 sets / 8 pieces; set identity grants no stat
   } as PlayerState;
   const dThorn = computeDerivedStats(withThorn);
   const dStripped = computeDerivedStats(stripped);
-  // Set bonuses were cut: a matched pair derives exactly the pieces' own stats.
-  assert.deepEqual(dThorn, dStripped);
+  // Thornbound 2-piece: +3 ATK · +4 Thorns · +3% Lifesteal · +12 Max HP.
+  assert.equal(dThorn.atk - dStripped.atk, 3);
+  assert.equal(dThorn.thorns - dStripped.thorns, 4);
+  assert.equal(dThorn.lifesteal - dStripped.lifesteal, 3);
+  assert.equal(dThorn.maxHp - dStripped.maxHp, 12);
 
   const withRime = { ...base, equipped: { amulet: pendant, armor: plate } } as PlayerState;
   const strippedRime = {
@@ -415,7 +418,11 @@ test('Phase 3 relic sets: pool is 4 sets / 8 pieces; set identity grants no stat
   } as PlayerState;
   const dRime = computeDerivedStats(withRime);
   const dStrippedRime = computeDerivedStats(strippedRime);
-  assert.deepEqual(dRime, dStrippedRime);
+  // Rimebound 2-piece: +5 DEF · +8% Dodge · +10 Max Mana · +8 Max HP.
+  assert.equal(dRime.def - dStrippedRime.def, 5);
+  assert.equal(dRime.dodgeChance - dStrippedRime.dodgeChance, 8);
+  assert.equal(dRime.maxMana - dStrippedRime.maxMana, 10);
+  assert.equal(dRime.maxHp - dStrippedRime.maxHp, 8);
 });
 
 test('Phase 3 relic sets: random set-relic pool grows with depth across all four sets', () => {

@@ -22,6 +22,10 @@ interface EndPauseModalProps {
   onOpenHallOfFame: () => void;
   onPlayAgain: () => void;
   onReturnToTitle: () => void;
+  /** Audit Tier 2: normal-mode death offers a town wake-up (gold toll)
+   *  instead of only ending the run. Hidden in hardcore (permadeath). */
+  onRespawnAtTown?: () => void;
+  respawnGoldCost?: number;
   /** Phase 2: settings are reachable from the pause menu too. */
   onOpenSettings?: () => void;
   /** Phase 7: when this run has already felled Malakor, the pause menu
@@ -53,6 +57,8 @@ export const EndPauseModal: React.FC<EndPauseModalProps> = ({
   onOpenHallOfFame,
   onPlayAgain,
   onReturnToTitle,
+  onRespawnAtTown,
+  respawnGoldCost = 0,
   onOpenSettings,
   canReturnToEnding = false,
   onReturnToEnding,
@@ -215,6 +221,16 @@ export const EndPauseModal: React.FC<EndPauseModalProps> = ({
           >
             Hall of Fame Chronicle
           </button>
+
+          {mode === 'GAME_OVER' && !hardcore && onRespawnAtTown && (
+            <button
+              type="button"
+              onClick={onRespawnAtTown}
+              className="min-h-[44px] w-full py-2.5 rounded bg-amber-500 hover:bg-amber-400 text-[#0B0D12] font-semibold text-sm cursor-pointer"
+            >
+              Wake in Oakhaven{respawnGoldCost > 0 ? ` — the road takes ${respawnGoldCost} gold` : ''}
+            </button>
+          )}
 
           {(mode === 'GAME_OVER' || mode === 'VICTORY') && (
             <button

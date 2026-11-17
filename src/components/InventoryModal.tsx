@@ -388,6 +388,9 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                           </span>
                         </div>
                         <div className="text-[10px] mt-0.5 opacity-90">{meta.summary.replace('2-Piece Set: ', '')}</div>
+                        <div className={`text-[10px] mt-0.5 font-medium ${activeSet ? 'text-amber-300' : 'opacity-60'}`}>
+                          {activeSet ? `Active: ${meta.bonusLabel}` : `2-piece bonus: ${meta.bonusLabel}`}
+                        </div>
                       </div>
                     );
                   })}

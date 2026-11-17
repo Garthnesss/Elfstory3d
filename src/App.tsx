@@ -2065,6 +2065,19 @@ export default function App() {
       }
 
       // Drop loot
+      // Audit Tier 2: a young hero's first regular kill always drops
+      // equipment — the live playtest went ~30 minutes with nothing to
+      // equip, which kills the gear loop before it can start.
+      const earlyGuarantee =
+        !nextFlags.firstGearDropped &&
+        nextP.level <= 3 &&
+        !enemy.isBoss &&
+        !enemy.isElite &&
+        enemy.rank !== 'rare' &&
+        enemy.rank !== 'randboss';
+      if (earlyGuarantee) {
+        nextFlags = { ...nextFlags, firstGearDropped: true };
+      }
       const dropRoll = Math.random();
       if (enemy.rank === 'randboss') {
         const randbossItem =
@@ -2091,9 +2104,11 @@ export default function App() {
           y: enemy.y,
           item: rareDrop,
         });
-      } else if (enemy.isBoss || enemy.isElite || dropRoll < 0.42) {
+      } else if (enemy.isBoss || enemy.isElite || dropRoll < 0.42 || earlyGuarantee) {
         const minRar = enemy.isBoss ? 'Epic' : enemy.isElite ? 'Rare' : undefined;
-        const dropped = enemy.isBoss
+        const dropped = earlyGuarantee
+          ? generateProceduralItem(zone.depth)
+          : enemy.isBoss
           ? Math.random() < 0.35
             ? createRandomSetRelic(zone.depth)
             : generateProceduralItem(zone.depth, { minRarity: 'Epic' })
@@ -3611,12 +3626,18 @@ export default function App() {
               },
             };
           });
-          setSpecialPrompt({
-            title: entry.title,
-            subtitle: 'Carved Stele Inscription',
-            body: entry.text,
-            options: [{ id: 'ok', label: 'Close', tone: 'primary', onSelect: () => setSpecialPrompt(null) }],
-          });
+          // Audit Tier 2 (modal diet): re-reading a stele you already
+          // transcribed is a log line, not another click-Close modal.
+          if (worldFlags.readLoreIds.includes(loreId)) {
+            pushLog('This stele is already transcribed in your survey notes.', 'neutral', p.turnsElapsed);
+          } else {
+            setSpecialPrompt({
+              title: entry.title,
+              subtitle: 'Carved Stele Inscription',
+              body: entry.text,
+              options: [{ id: 'ok', label: 'Close', tone: 'primary', onSelect: () => setSpecialPrompt(null) }],
+            });
+          }
           return true;
         }
       }
@@ -4978,6 +4999,34 @@ export default function App() {
     tutorialRestedRef.current = true;
     setPlayer(restedPlayer);
   }, [activePanel, currentZone, gameState, player, pushLog, spawnBurst, spawnFloating, specialPrompt, worldFlags]);
+
+  // Audit Tier 2: death in normal mode no longer has to end the run —
+  // the hero wakes in Oakhaven, tended back to full strength, at the
+  // cost of 30% of carried gold. Hardcore keeps true permadeath (the
+  // EndPauseModal hides this option there).
+  const handleRespawnAtTown = useCallback(() => {
+    const cost = Math.floor(player.gold * 0.3);
+    const revived: PlayerState = {
+      ...player,
+      gold: player.gold - cost,
+      hp: derived.maxHp,
+      mana: derived.maxMana,
+      statuses: [],
+      companion: player.companion
+        ? { ...player.companion, hp: player.companion.maxHp, respawnCooldown: 0 }
+        : undefined,
+    };
+    transitionToZone('oakhaven', 'spawn', revived, zones);
+    setWalkPath([]);
+    setGameState('PLAYING');
+    pushLog(
+      cost > 0
+        ? "Darkness — then Sister Wren's hands and Oakhaven lamplight. You wake whole; the road's toll was " + cost + ' gold.'
+        : "Darkness — then Sister Wren's hands and Oakhaven lamplight. You wake whole, pockets empty but breathing.",
+      'quest',
+      player.turnsElapsed
+    );
+  }, [player, derived.maxHp, derived.maxMana, zones, transitionToZone, pushLog]);
 
   const handleToggleAutoExplore = useCallback(() => {
     if (gameState !== 'PLAYING' || activePanel !== 'NONE' || specialPrompt) return;
@@ -6618,6 +6667,8 @@ export default function App() {
           difficultyLabel={DIFFICULTY_INFO[difficulty].label}
           ngPlusCycle={ngPlusCycle}
           hardcore={hardcore}
+          onRespawnAtTown={handleRespawnAtTown}
+          respawnGoldCost={Math.floor(player.gold * 0.3)}
           authUser={authUser}
           cloudBusy={authBusy || cloudSaving}
           onSignIn={handleSignInGoogle}

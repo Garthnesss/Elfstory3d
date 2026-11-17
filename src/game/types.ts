@@ -409,6 +409,8 @@ export interface WorldFlags {
   npcDisposition: Record<string, number>;
   readLoreIds: string[];
   confrontedBosses?: string[];
+  /** Audit Tier 2: set once the run's guaranteed early gear drop lands. */
+  firstGearDropped?: boolean;
   waystonesAttuned?: number;
   bestiaryKills?: Partial<Record<EnemyArchetype, number>>;
   unlockedFeats?: string[];
