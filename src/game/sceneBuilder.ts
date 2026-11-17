@@ -346,7 +346,7 @@ export function buildZoneTerrain(
       let tallHeight = 0;
 
       if (tile.kind === 'wall') {
-        const wallH = biome === 'oakhaven' ? 1.22 + (biomeVariant % 3) * 0.05 : 1.84 + (biomeVariant % 3) * 0.09;
+        const wallH = biome === 'oakhaven' || biome === 'thornwick' ? 1.22 + (biomeVariant % 3) * 0.05 : 1.84 + (biomeVariant % 3) * 0.09;
         wallBaseHeight = wallH;
         wallMesh = new THREE.Mesh(geos.wallBox, mats.getWallArray(biome, biomeVariant, 'lit'));
         wallMesh.scale.set(1, wallH, 1);

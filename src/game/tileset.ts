@@ -939,10 +939,8 @@ export function getAnimatedFluidTile(
     ctx.fillStyle = '#FEF08A';
     ctx.fillRect(9 + ((f * 5) % 16), 19 - f * 2, 2, 2);
   } else {
-    ctx.fillStyle = '#0D273B';
+    ctx.fillStyle = '#0F2D47';
     ctx.fillRect(0, 0, s, s);
-    ctx.fillStyle = '#123650';
-    ctx.fillRect(2, 2, s - 4, s - 4);
 
     const drift = f * 2;
     ctx.fillStyle = '#2563EB';

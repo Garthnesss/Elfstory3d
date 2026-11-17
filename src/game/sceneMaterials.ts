@@ -251,9 +251,15 @@ export function getFloorTexture(
     ctx.fillStyle = brightenHex(p.floorBase, 2.2);
     ctx.fillRect(0, 0, s, s);
     const gTones = [brightenHex(p.floorSlabA, 2.25), brightenHex(p.floorSlabB, 2.2), brightenHex(p.floorSlabC, 2.3)];
+    // Multiplicative hash scatter — modular progressions traced visible diagonal dotted lines.
+    const hash2 = (n: number): [number, number] => {
+      const h = (n * 2654435761) >>> 0;
+      return [h % 60, (h >> 9) % 60];
+    };
     for (let i = 0; i < 110; i++) {
-      const gx = ((v * 29 + i * 37) % 60) + 2;
-      const gy = ((v * 41 + i * 23) % 60) + 2;
+      const [hx, hy] = hash2(i * 7 + v * 131);
+      const gx = hx + 2;
+      const gy = hy + 2;
       ctx.fillStyle = gTones[i % 3];
       ctx.globalAlpha = 0.3;
       ctx.fillRect(gx, gy, 2, 2);
@@ -262,8 +268,9 @@ export function getFloorTexture(
     ctx.strokeStyle = p.floorDetailA;
     ctx.lineWidth = 1;
     for (let i = 0; i < 9; i++) {
-      const bx = ((v * 13 + i * 17) % 56) + 4;
-      const by = ((v * 7 + i * 19) % 52) + 8;
+      const [bhx, bhy] = hash2(i * 17 + v * 57);
+      const bx = (bhx % 56) + 4;
+      const by = (bhy % 52) + 8;
       ctx.beginPath();
       ctx.moveTo(bx, by);
       ctx.lineTo(bx + (i % 2 === 0 ? 1 : -1), by - 4);
@@ -274,6 +281,49 @@ export function getFloorTexture(
       ctx.fillRect(20, 30, 2, 2);
       ctx.fillRect(44, 18, 2, 2);
       ctx.fillRect(33, 47, 2, 2);
+    }
+    return textureFromCanvas(key, canvas);
+  }
+  if (ctx && biome === 'thornwick' && !isVault) {
+    // Fen sedge ground (Phase 7 Step 2): murky blue-green sedge with mud
+    // patches and reed flecks — no flagstone grid, darker and wetter than Oakhaven.
+    ctx.fillStyle = '#33523F';
+    ctx.fillRect(0, 0, s, s);
+    const fTones = ['#2A4636', '#3D5F47', '#2F4E3C'];
+    const fHash = (n: number): [number, number] => {
+      const h = (n * 2654435761) >>> 0;
+      return [h % 58, (h >> 9) % 58];
+    };
+    for (let i = 0; i < 90; i++) {
+      const [hx, hy] = fHash(i * 7 + v * 131);
+      ctx.fillStyle = fTones[i % 3];
+      ctx.globalAlpha = 0.32;
+      ctx.fillRect(hx + 2, hy + 2, 3, 2);
+    }
+    ctx.globalAlpha = 0.4;
+    ctx.fillStyle = '#4A3F2E';
+    for (let i = 0; i < 7; i++) {
+      const [hx, hy] = fHash(i * 29 + v * 71);
+      ctx.beginPath();
+      ctx.ellipse(hx + 5, hy + 5, 4 + (i % 3), 2 + (i % 2), 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = '#7FB069';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 12; i++) {
+      const [hx, hy] = fHash(i * 17 + v * 57);
+      const bx = (hx % 54) + 5;
+      const by = (hy % 50) + 9;
+      ctx.beginPath();
+      ctx.moveTo(bx, by);
+      ctx.lineTo(bx + (i % 2 === 0 ? 1 : -1), by - 5);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#A3E635';
+    for (let i = 0; i < 5; i++) {
+      const [hx, hy] = fHash(i * 41 + v * 23);
+      ctx.fillRect((hx % 58) + 3, (hy % 58) + 3, 1, 1);
     }
     return textureFromCanvas(key, canvas);
   }
@@ -352,23 +402,59 @@ export function getRoadTexture(biome: BiomeId, variant: number): THREE.CanvasTex
   const s = 64;
   const [canvas, ctx] = makeCanvas(s);
   if (ctx && biome === 'oakhaven') {
-    // Worn dirt path (Phase 7 redo): soft blotches and speckle, no cobbles.
-    ctx.fillStyle = brightenHex(p.roadBase, 1.95);
+    // Worn dirt path (Phase 7 redo): warm saturated dirt — the khaki palette
+    // brightened x1.95 read as pale stone slabs, so dirt tones are explicit here.
+    ctx.fillStyle = '#8A6B48';
     ctx.fillRect(0, 0, s, s);
-    const dTones = [brightenHex(p.roadStoneA, 1.85), brightenHex(p.roadStoneB, 1.85), brightenHex(p.roadStoneC, 1.9)];
+    const dTones = ['#7A5C3C', '#977851', '#6E5439'];
+    const dHash = (n: number): [number, number] => {
+      const h = (n * 2654435761) >>> 0;
+      return [h % 56, (h >> 9) % 56];
+    };
     for (let i = 0; i < 26; i++) {
-      const cx = ((v * 23 + i * 29) % 56) + 4;
-      const cy = ((v * 31 + i * 13) % 56) + 4;
+      const [hx, hy] = dHash(i * 11 + v * 71);
+      const cx = hx + 4;
+      const cy = hy + 4;
       ctx.fillStyle = dTones[i % 3];
-      ctx.globalAlpha = 0.35;
+      ctx.globalAlpha = 0.4;
       ctx.beginPath();
       ctx.ellipse(cx, cy, 5 + (i % 4), 3 + (i % 3), 0, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;
-    ctx.fillStyle = brightenHex(p.roadBase, 1.2);
+    ctx.fillStyle = '#5D4630';
     for (let i = 0; i < 40; i++) {
-      ctx.fillRect(((v * 17 + i * 31) % 62) + 1, ((v * 11 + i * 43) % 62) + 1, 1, 1);
+      const [hx, hy] = dHash(i * 3 + v * 191);
+      ctx.fillRect((hx % 62) + 1, (hy % 62) + 1, 1, 1);
+    }
+    ctx.fillStyle = '#A5855E';
+    for (let i = 0; i < 22; i++) {
+      const [hx, hy] = dHash(i * 23 + v * 97);
+      ctx.fillRect((hx % 62) + 1, (hy % 62) + 1, 1, 1);
+    }
+    return textureFromCanvas(key, canvas);
+  }
+  if (ctx && biome === 'thornwick') {
+    // Boardwalk planks (Phase 7 Step 2): weathered horizontal planks over peat,
+    // so fen paths read as built walkways, not dirt or cobble.
+    ctx.fillStyle = '#3A3128';
+    ctx.fillRect(0, 0, s, s);
+    const plankTones = ['#6B543C', '#755C40', '#5F4A34', '#6B543C'];
+    const plankH = 9;
+    for (let row = 0; row * plankH < s; row++) {
+      const y = row * plankH;
+      const tone = plankTones[(row + v) % plankTones.length];
+      ctx.fillStyle = tone;
+      ctx.fillRect(0, y + 1, s, plankH - 2);
+      ctx.fillStyle = 'rgba(255, 240, 200, 0.10)';
+      ctx.fillRect(0, y + 1, s, 1);
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+      ctx.fillRect(0, y + plankH - 2, s, 1);
+      const seamX = ((v * 23 + row * 19) % 44) + 8;
+      ctx.fillRect(seamX, y + 1, 1, plankH - 2);
+      ctx.fillStyle = '#2E2620';
+      ctx.fillRect(3, y + 3, 2, 2);
+      ctx.fillRect(s - 5, y + 3, 2, 2);
     }
     return textureFromCanvas(key, canvas);
   }
@@ -425,8 +511,8 @@ export function getWallTopTexture(biome: BiomeId, variant: number): THREE.Canvas
   const p = getBiomePalette(biome);
   const s = 64;
   const [canvas, ctx] = makeCanvas(s);
-  if (ctx && biome === 'oakhaven') {
-    // Terracotta shingle roof: overlapping rows with scalloped bottoms and
+  if (ctx && (biome === 'oakhaven' || biome === 'thornwick')) {
+    // Shingle roof (terracotta in Oakhaven, mossy dark teal in Thornwick Fen): overlapping rows with scalloped bottoms and
     // offset seams, so cottage tops read as tiled roofs from above.
     ctx.fillStyle = brightenHex(p.wallTop, 1.25);
     ctx.fillRect(0, 0, s, s);
@@ -531,7 +617,7 @@ export function getWallSideTexture(
       ctx.fillRect(36, 36, 12, 5);
     }
 
-    if (biome === 'oakhaven') {
+    if (biome === 'oakhaven' || biome === 'thornwick') {
       // Half-timbered cottage wall: warm plaster with dark timber framing
       // overpainted on the masonry (village redo).
       ctx.fillStyle = brightenHex(p.wallFace, 1.55);
