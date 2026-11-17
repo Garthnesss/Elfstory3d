@@ -78,7 +78,9 @@ export const ActionDock: React.FC<ActionDockProps> = ({
       {logExpanded && drawerLogs.length > 0 && (
         <div className="2xl:hidden absolute bottom-full left-0 right-0 z-30 border-t border-amber-400/30 bg-[#0B0E15]/95 backdrop-blur-sm px-3 py-2.5 shadow-2xl space-y-1 max-h-48 overflow-y-auto rpg-scroll">
           <div className="flex items-center justify-between pb-1 border-b border-white/10">
-            <span className="text-[11px] font-semibold text-amber-200">Recent Chronicle</span>
+            <span className="text-[11px] font-semibold text-amber-200">
+              Recent Chronicle · <span className="font-mono-glyph tabular-nums">T{player.turnsElapsed}</span>
+            </span>
             <button
               type="button"
               onClick={() => setLogExpanded(false)}
@@ -107,8 +109,8 @@ export const ActionDock: React.FC<ActionDockProps> = ({
           <span className={`truncate min-w-0 ${toneColor(recentLogs[0].tone)}`}>
             {lineInner(recentLogs[0])}
           </span>
-          <span className="text-[10px] font-mono-glyph text-slate-400 shrink-0">
-            {logExpanded ? 'Hide' : 'Log'}
+          <span className="text-[10px] font-mono-glyph text-slate-400 shrink-0 tabular-nums">
+            T{player.turnsElapsed} · {logExpanded ? 'Hide' : 'Log'}
           </span>
         </button>
       )}
@@ -357,6 +359,7 @@ export const ActionDock: React.FC<ActionDockProps> = ({
 
         {/* Compact Rolling Chronicle Log */}
         <div className="hidden 2xl:flex flex-col justify-center min-w-0 flex-1 max-w-md border-l border-white/10 pl-3 space-y-0.5">
+          <div className="text-[10px] font-mono-glyph text-slate-500 tabular-nums">T{player.turnsElapsed}</div>
           {recentLogs.map((entry, idx) => (
             <div
               key={entry.id}

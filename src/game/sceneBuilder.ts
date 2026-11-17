@@ -893,11 +893,14 @@ export function buildZoneTerrain(
         group.add(rootClump);
         animatedMesh = blossom;
       } else if (tile.kind === 'contraband_cache') {
+        // Quest objective: it must never read as a plain chest. Violet
+        // quest banding, a glow halo (same language as the stairs), and a
+        // floating gem that bobs via the animated-mesh pass.
         const crateMat = mats.getLambert(`cacheCrate:lit`, () =>
           new THREE.MeshLambertMaterial({ color: 0x78350f })
         );
-        const bandMat = mats.getLambert(`cacheBand:lit`, () =>
-          new THREE.MeshLambertMaterial({ color: 0x334155 })
+        const bandMat = mats.getBasic(`cacheBand:lit`, () =>
+          new THREE.MeshBasicMaterial({ color: 0xa78bfa })
         );
         const crate = new THREE.Mesh(geos.chestBase, crateMat);
         crate.scale.set(1.05, 1.35, 1.25);
@@ -909,6 +912,25 @@ export function buildZoneTerrain(
         addShadowFlag(strap, true, true);
         group.add(crate, strap);
         structureMeshes.push(crate, strap);
+        const glowMat = mats.getBasic(`cacheGlow`, () =>
+          new THREE.MeshBasicMaterial({
+            map: getGlowDiscTexture('#a78bfa'),
+            transparent: true,
+            opacity: 0.7,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+          })
+        );
+        haloMesh = new THREE.Mesh(geos.shadowDisc, glowMat);
+        haloMesh.position.y = 0.025;
+        haloMesh.scale.set(1.3, 1.3, 1.3);
+        group.add(haloMesh);
+        const gemMat = mats.getBasic(`cacheGem`, () => new THREE.MeshBasicMaterial({ color: 0xc4b5fd }));
+        const gem = new THREE.Mesh(geos.crystal, gemMat);
+        gem.position.y = 0.62;
+        gem.scale.set(0.55, 0.55, 0.55);
+        group.add(gem);
+        animatedMesh = gem;
       } else if (tile.kind === 'whispering_bell') {
         const pillarMat = mats.getLambert(`bellStone:lit`, () =>
           new THREE.MeshLambertMaterial({ color: 0x64748b })

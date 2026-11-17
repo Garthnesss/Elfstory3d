@@ -400,6 +400,9 @@ export function findPathPoints(
         tile.visible && zone.enemies.some((e) => e.x === nx && e.y === ny && !(nx === tx && ny === ty));
       const blockedByNpc = zone.npcs.some((n) => n.x === nx && n.y === ny && !(nx === tx && ny === ty));
       if (blockedByEnemy || blockedByNpc) continue;
+      // Stairs auto-trigger a zone change when stepped on: never route
+      // *through* them. They are only valid as the final destination.
+      if ((tile.kind === 'stairs_up' || tile.kind === 'stairs_down') && !(nx === tx && ny === ty)) continue;
 
       visited.add(key);
       parent.set(key, `${cur.x},${cur.y}`);
@@ -482,6 +485,11 @@ export function findAutoExploreTarget(
           continue;
         }
         if (zone.npcs.some((n) => n.x === nx && n.y === ny)) continue;
+        // Stairs auto-trigger a zone change when stepped on: never use them
+        // as a waypoint. stairs_down may be entered only when it is the BFS
+        // target itself (stage 4's deliberate descent); stairs_up never.
+        if (tile.kind === 'stairs_up') continue;
+        if (tile.kind === 'stairs_down' && !predicate(nx, ny)) continue;
 
         visited.add(key);
         queue.push({

@@ -402,7 +402,7 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
         s.hoverCoord.x,
         s.hoverCoord.y,
         true,
-        16
+        64
       );
     } else {
       s.hoverPath = [];
@@ -1811,6 +1811,37 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
     setHoverInfo({ x: coord.x, y: coord.y, tile, enemy, npc, companion, lootLabel, pinned });
   };
 
+  // Zone/player state is replaced immutably every turn, so an inspected
+  // enemy or companion object goes stale immediately (frozen HP) and
+  // outlives its subject's death. Re-resolve both against the live
+  // zone/player whenever they change; drop the card when nothing it
+  // showed still exists.
+  useEffect(() => {
+    if (!hoverInfo) return;
+    let next = hoverInfo;
+    if (hoverInfo.enemy) {
+      const live = zone.tiles[hoverInfo.y]?.[hoverInfo.x]?.visible
+        ? zone.enemies.find((en) => en.x === hoverInfo.x && en.y === hoverInfo.y)
+        : undefined;
+      if (live !== hoverInfo.enemy) next = { ...next, enemy: live };
+    }
+    if (hoverInfo.companion) {
+      const c = player.companion;
+      const live =
+        c && c.hp > 0 && c.respawnCooldown === 0 && c.x === hoverInfo.x && c.y === hoverInfo.y
+          ? c
+          : undefined;
+      if (live !== hoverInfo.companion) next = { ...next, companion: live };
+    }
+    if (next !== hoverInfo) {
+      if (!next.enemy && !next.companion && !next.npc && !next.lootLabel && !next.tile.label) {
+        setHoverInfo(null);
+      } else {
+        setHoverInfo(next);
+      }
+    }
+  }, [zone, player, hoverInfo]);
+
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const d = dragRef.current;
 
@@ -1916,7 +1947,7 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
     }
 
     if (!armedSkill) {
-      s.hoverPath = findPathPoints(zone, player.x, player.y, coord.x, coord.y, true, 16);
+      s.hoverPath = findPathPoints(zone, player.x, player.y, coord.x, coord.y, true, 64);
     } else {
       s.hoverPath = [];
     }

@@ -107,6 +107,7 @@ import {
   computeVisibility,
   findAutoExploreTarget,
   findPathNextStep,
+  findPathPoints,
   hasAffix,
   hasLineOfSight,
   manhattan,
@@ -519,6 +520,7 @@ export default function App() {
   const [armedSkill, setArmedSkill] = useState<SkillId | null>(null);
   const [aimedTarget, setAimedTarget] = useState<{ x: number; y: number } | null>(null);
   const [autoExploring, setAutoExploring] = useState(false);
+  const [walkPath, setWalkPath] = useState<Array<{ x: number; y: number }>>([]);
   const [activeDialogue, setActiveDialogue] = useState<{ npcId: string; nodeId: string } | null>(
     null
   );
@@ -664,7 +666,7 @@ export default function App() {
 
   useEffect(() => {
     if (!zoneBanner) return;
-    const t = window.setTimeout(() => setZoneBanner(null), 4600);
+    const t = window.setTimeout(() => setZoneBanner(null), 7000);
     return () => window.clearTimeout(t);
   }, [zoneBanner]);
 
@@ -4960,6 +4962,7 @@ export default function App() {
     soundEngine.playClick();
     setArmedSkill(null);
     setAimedTarget(null);
+    setWalkPath([]);
     setAutoExploring(true);
   }, [activePanel, autoExploring, currentZone, gameState, pushLog, specialPrompt]);
 
@@ -5073,6 +5076,7 @@ export default function App() {
     (tx: number, ty: number) => {
       if (gameState !== 'PLAYING' || activePanel !== 'NONE' || specialPrompt) return;
       setAutoExploring(false);
+      setWalkPath([]);
 
       if (armedSkill) {
         executeSkill(armedSkill, tx, ty);
@@ -5090,10 +5094,17 @@ export default function App() {
         return;
       }
 
-      // Step 1 tile along shortest path toward clicked tile
-      const nextStep = findPathNextStep(currentZone, player.x, player.y, tx, ty);
-      if (nextStep) {
-        attemptStep(nextStep.x - player.x, nextStep.y - player.y);
+      // Walk the full path to the clicked tile (one real turn per step,
+      // executed by the path-walker effect below). Fall back to a single
+      // pathing step when no explored route exists yet.
+      const path = findPathPoints(currentZone, player.x, player.y, tx, ty, true, 64);
+      if (path.length > 0) {
+        setWalkPath(path);
+      } else {
+        const nextStep = findPathNextStep(currentZone, player.x, player.y, tx, ty);
+        if (nextStep) {
+          attemptStep(nextStep.x - player.x, nextStep.y - player.y);
+        }
       }
     },
     [
@@ -5361,6 +5372,41 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [activePanel, attemptStep, autoExploring, currentZone, derived.maxHp, gameState, player.hp, player.statuses, player.x, player.y, pushLog, specialPrompt]);
 
+  // Click-to-move path walker: steps the clicked path one real turn at a
+  // time (same cadence family as Auto-Explore). Cancels on any manual
+  // input, panel/prompt/dialogue, zone change, or when a visible enemy
+  // closes to within 2 tiles.
+  useEffect(() => {
+    setWalkPath([]);
+  }, [currentZone.id]);
+
+  useEffect(() => {
+    if (walkPath.length === 0) return;
+    if (gameState !== 'PLAYING' || activePanel !== 'NONE' || specialPrompt || activeDialogue) {
+      setWalkPath([]);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      const enemyNear =
+        !currentZone.isTown &&
+        currentZone.enemies.some(
+          (e) => currentZone.tiles[e.y]?.[e.x]?.visible && chebyshev(player.x, player.y, e.x, e.y) <= 2
+        );
+      if (enemyNear) {
+        setWalkPath([]);
+        return;
+      }
+      const next = walkPath[0];
+      if (!next || chebyshev(player.x, player.y, next.x, next.y) !== 1) {
+        setWalkPath([]);
+        return;
+      }
+      setWalkPath(walkPath.slice(1));
+      attemptStep(next.x - player.x, next.y - player.y);
+    }, 120);
+    return () => window.clearTimeout(timer);
+  }, [activeDialogue, activePanel, attemptStep, currentZone, gameState, player.x, player.y, specialPrompt, walkPath]);
+
   const handleInteractAction = useCallback(
     (allowWaitFallback: boolean) => {
       setAutoExploring(false);
@@ -5394,6 +5440,7 @@ export default function App() {
     armedSkill,
     aimedTarget,
     autoExploring,
+    walkPath,
     specialPrompt,
     showHallOfFame,
     activeSlot,
@@ -5418,6 +5465,7 @@ export default function App() {
       armedSkill,
         aimedTarget,
       autoExploring,
+      walkPath,
       specialPrompt,
       showHallOfFame,
       activeSlot,
@@ -5440,6 +5488,7 @@ export default function App() {
     armedSkill,
     aimedTarget,
     autoExploring,
+    walkPath,
     specialPrompt,
     showHallOfFame,
     activeSlot,
@@ -5481,6 +5530,10 @@ export default function App() {
           setAutoExploring(false);
           return;
         }
+        if (s.walkPath.length > 0) {
+          setWalkPath([]);
+          return;
+        }
         if (s.specialPrompt) {
           setSpecialPrompt(null);
           return;
@@ -5513,6 +5566,9 @@ export default function App() {
       }
 
       if (s.gameState !== 'PLAYING' || s.activePanel !== 'NONE' || s.specialPrompt || s.showHallOfFame) return;
+
+      // Any manual input cancels a click-to-move walk.
+      if (s.walkPath.length > 0) setWalkPath([]);
 
       if (e.key === 'Tab' && s.armedSkill) {
         e.preventDefault();
@@ -5678,6 +5734,10 @@ export default function App() {
           setAutoExploring(false);
           return;
         }
+        if (s.walkPath.length > 0) {
+          setWalkPath([]);
+          return;
+        }
         if (s.specialPrompt) {
           setSpecialPrompt(null);
           return;
@@ -5706,6 +5766,9 @@ export default function App() {
       }
 
       if (s.gameState !== 'PLAYING' || s.activePanel !== 'NONE' || s.specialPrompt || s.showHallOfFame) return;
+
+      // Any manual input cancels a click-to-move walk.
+      if (s.walkPath.length > 0) setWalkPath([]);
 
       switch (action) {
         case 'moveUp': {
@@ -6176,6 +6239,8 @@ export default function App() {
             quests={quests}
             worldFlags={worldFlags}
             hidden={Boolean(activeDialogue || specialPrompt)}
+            playerPos={{ x: player.x, y: player.y }}
+            zone={currentZone}
           />
         )}
 

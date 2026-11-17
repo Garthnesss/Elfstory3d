@@ -112,10 +112,16 @@ export function deriveTrackedObjectives(
   if (mainQuest && mainQuest.status === 'active') {
     main = toObjective(mainQuest, worldFlags, true);
   } else if (!mainQuest && !worldFlags.malakorDefeated) {
+    // Kaelen in Highspire is the actual giver; Vance is the gatekeeper
+    // step that opens the road there. Say so, at whichever step the
+    // player is on, instead of implying Vance grants the quest.
+    const cacheDone = quests['shadows_beneath']?.status === 'completed';
     main = {
       questId: MAIN_QUEST_ID,
       title: QUEST_DEFS[MAIN_QUEST_ID]?.title ?? 'The Sovereign of Cinder',
-      hint: 'Speak with Warden Vance in Oakhaven Outpost to take up the descent.',
+      hint: cacheDone
+        ? 'The road west is open: travel to Highspire Citadel and take Guildmaster Kaelen’s commission against Malakor.'
+        : 'The road to Highspire is sealed. Earn Warden Vance’s trust in Oakhaven — his Smuggler Cache on Floor 1 is the first step.',
       isMain: true,
     };
   }
