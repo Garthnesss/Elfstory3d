@@ -134,6 +134,16 @@ From the Nov 16 audit, partial playtest and fix pass (evidence in STATUS.md). Or
 - *Behind:* runs on far fewer devices than 2D peers (items 1–5); no seeds or daily challenge (item 11); fewer travel and fight conveniences — auto-fight, go-to-stairs, a full map (items 7–8); less build variety and replay pressure (12 skills in 3 trees; New Game+ only scales numbers — peers add run modifiers and many more classes); about 2–4 hours of unique content.
 - *Suggested direction, Garth's call:* fix reach first (items 1–5), then replay value (item 11 plus run modifiers on New Game+), before adding more content.
 
+## Design direction — ActRaiser (Garth, Nov 17, 2026)
+
+Garth: "We need to be like ActRaiser." ActRaiser (SNES, 1990) alternates
+side-scrolling action stages with god-game town-building: the town grows
+between action stages, its growth feeds back into the action, and caring
+for the town is the emotional core. For ElfStory 3D the obvious mapping is
+the sanctuary towns growing between descents — but Garth will elaborate
+before anything is scoped. Noted here at his request; no scope change and
+no queue change until he does.
+
 ## Explicitly later (not this roadmap)
 - Platform achievements / lifetime stats beyond the 10 in-run feats — un-park with a distribution decision.
 - Platform distribution, monetization, multiplayer — out of scope per PROJECT_TRUTH.
