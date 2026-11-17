@@ -77,6 +77,14 @@ Every place should be recognizable from a single screenshot — like a real game
 - **Gate**: each town and dungeon family instantly identifiable from a Top-view screenshot; no layout, balance or save changes (palettes/atmosphere/props only, new fields optional-with-defaults); `npm test` + `tsc` + build green; Garth's screenshot/play check per place.
 
 ## Phase 8 — "Audit follow-ups" (Nov 16, 2026 audit; first tranche DONE, rest open)
+
+### ▶ Next up — agreed order (Nov 17, 2026)
+Everything below this list is the detail behind it. Live build: `6df2594` on Pages.
+1. **Balance check.** Hand-play (or script-play *with skills, shopping and the Might dialogue option*) a fresh Vanguard, Standard, Floors 1–5. Last scripted run died to Vaelen at Lv 3 (bump-only, 25 rounds); since then the lean-core cut also removed feat gold and stronger potions. Decide: keep, trim story-boss HP ~20%, or loosen loot (depth step ×5 → ×6–7). Gate: boss fights land in 8–12 rounds for a player using skills; record numbers in STATUS.
+2. **Performance — batch the terrain** (item 1 under "Open — performance"). Target Oakhaven < 150 draw calls (now ~1,500). Measure before/after; test on a real phone if possible.
+3. **Comedy, part 2.** Quest summaries, journal hints and the 17 lore steles in the comedy voice (rule: the joke is on Garth, NPCs keep their jobs; plot unchanged).
+4. **Quality-of-life fixes.** Attack-nearest key, full zone map on desktop, narrow-screen overlaps (Look/Map over the quest tracker; tutorial card over the hero and D-pad), and the "unknown error when fetching the script" console error seen once on the built Pages page.
+5. **Split up `App.tsx`** (~6,800 lines, 152 hooks): move rules into pure `src/game/` modules with behaviour tests; no player-visible change.
 From the Nov 16 audit, partial playtest and fix pass (evidence in STATUS.md). Ordered by payoff.
 
 **Done Nov 16 (114/114 tests, tsc + build clean, uncommitted):**
