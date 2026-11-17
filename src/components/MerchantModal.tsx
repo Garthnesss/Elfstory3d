@@ -11,7 +11,6 @@ interface MerchantModalProps {
   onBuyItem: (itemId: string) => void;
   onSellItem: (itemId: string) => void;
   onUpgradeItem: (itemId: string, isEquipped: boolean) => void;
-  onOpenTownUpgrades?: () => void;
   onClose: () => void;
 }
 
@@ -23,14 +22,12 @@ export const MerchantModal: React.FC<MerchantModalProps> = ({
   onBuyItem,
   onSellItem,
   onUpgradeItem,
-  onOpenTownUpgrades,
   onClose,
 }) => {
   const [tab, setTab] = useState<'buy' | 'sell' | 'forge'>('buy');
 
-  const smithyLv = worldFlags.townUpgrades?.smithy ?? 0;
-  const maxTemperLv = smithyLv >= 2 ? 4 : 3;
-  const discountMult = smithyLv >= 1 ? 0.75 : 1;
+  const maxTemperLv = 3;
+  const discountMult = 1;
 
   const upgradeCost = (item: Item) => ({
     gold: Math.max(8, Math.round((25 + item.upgradeLevel * 25) * discountMult)),
@@ -53,20 +50,10 @@ export const MerchantModal: React.FC<MerchantModalProps> = ({
             <h2 className="font-display text-base sm:text-lg font-bold text-amber-200">{merchantName}</h2>
             <p className="text-xs text-slate-400 font-mono-glyph mt-0.5 tabular-nums">
               Purse: {player.gold} Gold
-              {smithyLv > 0 ? ` · Smithy Lv ${smithyLv}` : ''}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 ml-auto">
-            {onOpenTownUpgrades && (
-              <button
-                type="button"
-                onClick={onOpenTownUpgrades}
-                className="min-h-[44px] px-3 py-1.5 rounded border border-amber-400/35 bg-amber-500/12 text-amber-200 hover:bg-amber-500/20 text-xs font-medium cursor-pointer"
-              >
-                Town Upgrades
-              </button>
-            )}
 
             <div className="flex items-center gap-1 p-1 rounded bg-[#0A0D14] border border-white/10">
               {(
@@ -191,7 +178,6 @@ export const MerchantModal: React.FC<MerchantModalProps> = ({
             <div className="space-y-4">
               <p className="text-xs text-slate-400">
                 Temper equipped or carried gear up to +{maxTemperLv} using Gold.
-                {smithyLv >= 1 ? ' (25% Smithy discount active)' : ''}
               </p>
               {forgeGear.length === 0 ? (
                 <div className="text-xs text-slate-500 py-8 text-center">No equipment to temper.</div>

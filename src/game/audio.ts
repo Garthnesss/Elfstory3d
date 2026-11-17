@@ -467,11 +467,6 @@ class SoundEngine {
     this.tone(1120, 1420, 0.2, 'sine', 0.06, 0.05);
   }
 
-  public playCodexUnlock(): void {
-    [440, 554.37, 659.25, 880].forEach((freq, idx) => {
-      this.tone(freq, freq, 0.16, 'triangle', 0.06, idx * 0.06);
-    });
-  }
 }
 
 export const soundEngine = new SoundEngine();

@@ -9,16 +9,7 @@ import {
   setCurrentCycle,
   setCurrentDifficulty,
 } from '../src/game/difficulty';
-import {
-  DEFAULT_LIFETIME,
-  LIFETIME_KEY,
-  LifetimeStats,
-  applyLifetimeEvent,
-  deepestDepthForZones,
-  loadLifetime,
-  mergeLifetime,
-  saveLifetime,
-} from '../src/game/lifetime';
+import { deepestDepthForZones } from '../src/game/runRules';
 import {
   SAVE_VERSION,
   SavedBundle,
@@ -239,85 +230,6 @@ test('hardcore: fallen bundle survives the storage round-trip as fallen', () => 
 });
 
 // ------------------------------------------------------------- lifetime
-
-test('lifetime: defaults hydrate on a fresh device and for corrupt blobs', () => {
-  assert.deepEqual(loadLifetime(makeStorage()), DEFAULT_LIFETIME);
-  const corrupt = makeStorage({ [LIFETIME_KEY]: 'garbage{nope' });
-  assert.deepEqual(loadLifetime(corrupt), DEFAULT_LIFETIME);
-  assert.deepEqual(mergeLifetime(undefined), DEFAULT_LIFETIME);
-  assert.deepEqual(mergeLifetime('a string'), DEFAULT_LIFETIME);
-});
-
-test('lifetime: partial blobs merge over defaults; hostile values sanitize', () => {
-  const merged = mergeLifetime({ victories: 3, totalKills: 41 });
-  assert.equal(merged.victories, 3);
-  assert.equal(merged.totalKills, 41);
-  assert.equal(merged.deaths, 0);
-  const hostile = mergeLifetime({
-    victories: -5,
-    deaths: Number.NaN,
-    totalKills: 12.9,
-    deepestFloor: 'deep',
-    highestCycle: 2,
-  });
-  assert.equal(hostile.victories, 0); // negative => default
-  assert.equal(hostile.deaths, 0); // NaN => default
-  assert.equal(hostile.totalKills, 12); // fractional => floored
-  assert.equal(hostile.deepestFloor, 0); // non-number => default
-  assert.equal(hostile.highestCycle, 2);
-});
-
-test('lifetime: events increment counters as pure functions', () => {
-  let s: LifetimeStats = { ...DEFAULT_LIFETIME };
-  s = applyLifetimeEvent(s, { kind: 'expeditionStarted' });
-  s = applyLifetimeEvent(s, { kind: 'expeditionStarted' });
-  s = applyLifetimeEvent(s, { kind: 'victory' });
-  s = applyLifetimeEvent(s, { kind: 'death' });
-  s = applyLifetimeEvent(s, { kind: 'kills', count: 1 });
-  s = applyLifetimeEvent(s, { kind: 'kills', count: 1 });
-  s = applyLifetimeEvent(s, { kind: 'kills', count: 5 });
-  assert.deepEqual(s, {
-    expeditionsStarted: 2,
-    victories: 1,
-    deaths: 1,
-    totalKills: 7,
-    deepestFloor: 0,
-    highestCycle: 0,
-  });
-  // The input object is never mutated.
-  const before: LifetimeStats = { ...DEFAULT_LIFETIME, totalKills: 3 };
-  applyLifetimeEvent(before, { kind: 'kills', count: 2 });
-  assert.equal(before.totalKills, 3);
-});
-
-test('lifetime: floor and cycle records only ever rise', () => {
-  let s: LifetimeStats = { ...DEFAULT_LIFETIME };
-  s = applyLifetimeEvent(s, { kind: 'floorReached', depth: 4 });
-  assert.equal(s.deepestFloor, 4);
-  const same = applyLifetimeEvent(s, { kind: 'floorReached', depth: 2 });
-  assert.equal(same, s); // no-op returns the same object
-  s = applyLifetimeEvent(s, { kind: 'floorReached', depth: 9 });
-  assert.equal(s.deepestFloor, 9);
-  s = applyLifetimeEvent(s, { kind: 'cycleReached', cycle: 2 });
-  assert.equal(s.highestCycle, 2);
-  assert.equal(applyLifetimeEvent(s, { kind: 'cycleReached', cycle: 1 }), s);
-  assert.equal(applyLifetimeEvent(s, { kind: 'kills', count: 0 }), s);
-});
-
-test('lifetime: save/load round-trip through storage', () => {
-  const storage = makeStorage();
-  const stats: LifetimeStats = {
-    expeditionsStarted: 4,
-    victories: 1,
-    deaths: 2,
-    totalKills: 137,
-    deepestFloor: 6,
-    highestCycle: 1,
-  };
-  saveLifetime(stats, storage);
-  assert.deepEqual(loadLifetime(storage), stats);
-  assert.ok(storage._map.has(LIFETIME_KEY));
-});
 
 test('lifetime: deepest depth derives from discovered zones like the chronicle', () => {
   assert.equal(deepestDepthForZones(['oakhaven'], 0), 0);

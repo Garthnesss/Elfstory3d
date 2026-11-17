@@ -1,32 +1,16 @@
 import React from 'react';
 import { Trophy, Skull, X } from 'lucide-react';
-import { LifetimeStats } from '../game/lifetime';
 import { ChronicleEntry } from '../game/types';
 
 interface HallOfFameModalProps {
   entries: ChronicleEntry[];
-  isSignedIn: boolean;
-  /** Phase 5: per-device lifetime record (all runs, all slots). */
-  lifetime?: LifetimeStats;
   onClose: () => void;
 }
 
 export const HallOfFameModal: React.FC<HallOfFameModalProps> = ({
   entries,
-  isSignedIn,
-  lifetime,
   onClose,
 }) => {
-  const lifetimeStats: Array<{ label: string; value: number }> = lifetime
-    ? [
-        { label: 'Expeditions Started', value: lifetime.expeditionsStarted },
-        { label: 'Victories', value: lifetime.victories },
-        { label: 'Deaths', value: lifetime.deaths },
-        { label: 'Foes Slain', value: lifetime.totalKills },
-        { label: 'Deepest Floor', value: lifetime.deepestFloor },
-        { label: 'Highest Cycle', value: lifetime.highestCycle },
-      ]
-    : [];
   return (
     <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-2.5 sm:p-5">
       <div className="w-full max-w-2xl rounded-md border border-amber-500/30 bg-[#10141D] shadow-2xl flex flex-col max-h-[90dvh]">
@@ -34,9 +18,7 @@ export const HallOfFameModal: React.FC<HallOfFameModalProps> = ({
           <div>
             <h2 className="font-display text-base sm:text-lg font-bold text-amber-200">Hall of Fame Chronicle</h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              {isSignedIn
-                ? 'Synced record of your victorious and fallen expeditions across cloud and browser.'
-                : 'Recorded runs from this browser. Sign in with Google to preserve chronicles in the cloud.'}
+              Recorded runs from this browser — every victory, every fall.
             </p>
           </div>
           <button
@@ -50,23 +32,6 @@ export const HallOfFameModal: React.FC<HallOfFameModalProps> = ({
         </div>
 
         <div className="p-4 sm:p-6 overflow-y-auto rpg-scroll space-y-3">
-          {lifetime && (
-            <div className="p-4 rounded border border-amber-500/25 bg-[#141923]">
-              <div className="text-[11px] font-mono-glyph tracking-[0.25em] text-amber-400/80">
-                LIFETIME — EVERY DELVE, EVERY FALL
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3 text-xs font-mono-glyph">
-                {lifetimeStats.map((s) => (
-                  <div key={s.label}>
-                    <div className="text-slate-400">{s.label}</div>
-                    <div className="text-[#ECE4D4] font-semibold mt-0.5 text-sm tabular-nums">
-                      {s.value}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
           {entries.length === 0 ? (
             <div className="py-10 text-center text-sm text-slate-400 border border-white/10 rounded bg-[#141923]">
               No completed expeditions recorded yet. Defeat Malakor on Floor 5—or fall in the deep—to etch your name into the Chronicle.

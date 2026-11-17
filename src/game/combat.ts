@@ -517,10 +517,18 @@ export function findAutoExploreTarget(
   const frontierStep = bfsSearch((x, y) => isTargetFrontier(x, y));
   if (frontierStep) return { nextStep: frontierStep, reason: 'frontier' };
 
-  // 4. Otherwise navigate toward discovered descent stairs if not standing on them
+  // 4. Otherwise walk to the discovered descent stairs — but stop beside
+  // them. Stepping on stairs changes zone, so the descent stays the
+  // player's call (the Nov 16 playtest saw Auto-Explore carry the hero past
+  // an uncollected quest cache straight down to Floor 2).
   if (!zone.isTown && zone.tiles[py]?.[px]?.kind !== 'stairs_down') {
     const stairStep = bfsSearch((x, y) => zone.tiles[y][x].kind === 'stairs_down');
-    if (stairStep) return { nextStep: stairStep, reason: 'stairs' };
+    if (stairStep) {
+      if (zone.tiles[stairStep.y]?.[stairStep.x]?.kind === 'stairs_down') {
+        return { nextStep: null, reason: 'stairs' };
+      }
+      return { nextStep: stairStep, reason: 'stairs' };
+    }
   }
 
   return { nextStep: null, reason: 'done' };

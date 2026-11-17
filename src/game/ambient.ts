@@ -150,77 +150,88 @@ export function stepNpcWander(
 // ---------------------------------------------------------------------------
 
 export const NPC_BARKS: Record<string, string[]> = {
+  // Comedy pass (Nov 17, 2026, Garth's pick): the town has met Garth. The
+  // town is not impressed. Each NPC keeps their old job and voice; the
+  // joke is always on Garth's legend, never on the NPC.
   torin: [
-    'Mind the sparks, traveler — good steel complains before it breaks.',
-    'Another blade for the deep? The vaults provide, one way or another.',
+    'Back again? That sword isn’t dull, lad. You’re just hitting walls with it.',
+    'I forged a blade for a real hero once. He also talked less.',
+    '“Big Dick” Elfstrom. I asked once. I will not be asking again.',
   ],
   mira: [
-    'Nightbloom’s up early this year. The blight is restless.',
-    'Dry your boots by my brazier, dear. The fen takes toes.',
+    'Drink the red one, dear. Not the green one. The green one is for warts.',
+    'You’ve the complexion of a man who licked a spore pool. Did you lick a spore pool?',
+    'I sell potions, not dignity. You’ll have to find that downstairs.',
   ],
   vance: [
-    'Watch reports quiet. Too quiet, if you ask me.',
-    'Keep your lantern trimmed. The Reliquary eats the unprepared.',
+    'The Reliquary eats the unprepared. You’ll be a snack, then.',
+    'I’ve sent eleven heroes below this season. You’re the loudest.',
+    'Smile less at the crypt, Elfstrom. It encourages it.',
   ],
   vex: [
-    'You didn’t see me. That’s the arrangement.',
-    'Everything in the deep has a price. Even silence.',
+    'You didn’t see me. Mostly because you walked into the fountain.',
+    'Everything has a price. Your autograph? Negative, it turns out.',
+    'Psst. Hero. Your cape is tucked into your belt. Has been all week.',
   ],
   lyra: [
-    'The steles are waking, one by one. Someone is reading the deep roads again.',
-    'Mind the Bell’s temper. Bronze remembers.',
+    'The steles say a great hero will come. They do not say this one.',
+    'Please stop touching the Bell. Bronze remembers. So do I.',
+    'You transcribe like a man who learned letters from a menu.',
   ],
   corvus: [
-    'Petitions before noon. Grievances after. Order, always.',
-    'The Citadel endures because someone files the paperwork.',
+    'Your heroic deeds require Form 7-B. In triplicate. Signed, not drawn.',
+    'The Citadel endures because someone files the paperwork. That someone is not you.',
+    'Self-appointed “Champion of the Realm.” That title requires a fee.',
   ],
   kaelen: [
-    'Every delver who returns makes the next descent cheaper in blood.',
-    'Train. Temper. Then descend. In that order.',
+    'Train. Temper. Then descend. You did those in the wrong order again.',
+    'The Guild wall of heroes has room for your portrait. Small room. Hallway, really.',
+    'Every delver who returns makes the next one braver. You make them confused.',
   ],
   orin: [
-    'Four sets walk the deep now. Four! My ledger sings.',
-    'Bring me anything that hums. I pay in coin and gossip.',
+    'Bring me anything that hums. Not you. You hum. Stop humming.',
+    'Four relic sets in the deep, and you’re wearing half of three. Bold.',
   ],
   sylva: [
-    'The Hollow breathes slower when the heart-bloom is left in peace.',
-    'Frogs first, then silence, then teeth. That is the fen’s grammar.',
+    'The fen speaks. Today it said “who is that loud elf.”',
+    'Frogs first, then silence, then teeth. Then you, apologising to the teeth.',
   ],
   bram: [
-    'Found a gear down there older than the Citadel. Still ticking!',
-    'If it glows, pocket it. If it ticks, run. Words to live by.',
+    'If it glows, pocket it. If it ticks, run. If it’s you, I’ve learned to hide.',
+    'Found a gear older than the Citadel. Still works better than your plan.',
   ],
   halda: [
-    'Volcanic steel forgives; rime steel remembers. Choose your temper.',
-    'Kaelthar’s temper is in every Caldera ingot, I swear it.',
+    'Volcanic steel forgives. I do not. You owe me for the anvil.',
+    'Hold the hammer by the handle, Elfstrom. The other handle.',
   ],
   darek: [
-    'Barrow, Hollow, Caldera — the Vale keeps its teeth in three pockets.',
-    'Report anything that glows below. Anything.',
+    'Barrow, Hollow, Caldera — three ways to die and you’ve got a favourite.',
+    'Report anything that glows below. Not your armour. We know about the armour.',
   ],
   rowan: [
-    'Roads are just rivers that learned manners.',
-    'Six steles make a survey. The deep roads reward the literate.',
+    'Roads are just rivers that learned manners. You, friend, are still a flood.',
+    'Six steles make a survey. Six. Not five and a drawing of a horse.',
   ],
   pell: [
-    'Cart’s axle’s older than the Outpost and twice as stubborn.',
-    'I haul ore up and stories down. Stories pay worse, weigh less.',
+    'I haul ore up and stories down. Yours keep getting longer and the ore doesn’t.',
+    'Need a lift to the vale? Cart’s full. Of your fan mail. Joking. It’s turnips.',
   ],
   wren: [
-    'Sister Wren keeps the shrine candles and the Outpost’s secrets. Both lit.',
-    'Blessings are free. Candles cost a copper. Priorities.',
+    'Blessings are free. Candles cost a copper. Ego is extra.',
+    'I prayed for a hero. The gods have a sense of humour.',
+    'The shrine heals wounds, Elfstrom. Not that kind.',
   ],
   tomas: [
-    'Page Tomas, at your service! Messages, maps, and misplaced magistrates.',
-    'I know every stair in Highspire. I have fallen down most of them.',
+    'Page Tomas! I’m writing your biography! It’s mostly falling down stairs.',
+    'Are you THE Garth? My mum says you’re why the fountain has a fence.',
   ],
   fenwick: [
-    'Fenwick fishes what the fen gives. Today: boots. Yesterday: boots.',
-    'The frogs sing when the Hollow is calm. Listen before you wade.',
+    'Fenwick fishes what the fen gives. Today: boots. Yesterday: your boots.',
+    'Heard you fought a frog. Heard the frog won on points.',
   ],
   sella: [
-    'Quartermaster Sella. If it isn’t on my list, it isn’t in the Bastion.',
-    'Rations, rope, rime-wool. The mountain provides the rest — rudely.',
+    'If it isn’t on my list, it isn’t in the Bastion. You are not on my list.',
+    'Rations, rope, rime-wool, and one jar of “hero confidence” — that’s yours, it was empty.',
   ],
 };
 

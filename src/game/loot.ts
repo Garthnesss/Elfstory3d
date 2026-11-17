@@ -116,14 +116,30 @@ const AFFIX_POOL: Array<{ id: ItemAffixId; label: string }> = [
   { id: 'arcane_ward', label: 'Passive: Start floor with Shielded (+4 DEF, 4t)' },
 ];
 
-function rollRarity(depth: number, forceMinRarity?: ItemRarity): ItemRarity {
+/**
+ * Loot curve (retuned Nov 16, 2026 after the round-2 playtest showed gear,
+ * not level, setting the power curve). Was `random × 100 + depth × 9` with
+ * Epic > 96 and Relic > 118: Epic+ on 31% of Floor 3 drops, 76% at Abyss
+ * depth 8. Now the depth term is ×5 and capped, Epics arrive around
+ * Floor 3–4, and Relics only come from premium sources — a roll may reach
+ * Relic only when the caller already guarantees Epic (bosses, vaults,
+ * randbosses, set pieces). Ordinary drops top out at Epic.
+ */
+export const RARITY_DEPTH_STEP = 5;
+export const RARITY_DEPTH_CAP = 50;
+
+export function rollRarity(depth: number, forceMinRarity?: ItemRarity): ItemRarity {
   const order: ItemRarity[] = ['Common', 'Uncommon', 'Rare', 'Epic', 'Relic'];
-  const roll = Math.random() * 100 + depth * 9;
+  const roll =
+    Math.random() * 100 + Math.min(RARITY_DEPTH_CAP, Math.max(0, depth) * RARITY_DEPTH_STEP);
   let picked: ItemRarity = 'Common';
-  if (roll > 118) picked = 'Relic';
-  else if (roll > 96) picked = 'Epic';
-  else if (roll > 72) picked = 'Rare';
+  if (roll > 125) picked = 'Relic';
+  else if (roll > 104) picked = 'Epic';
+  else if (roll > 75) picked = 'Rare';
   else if (roll > 42) picked = 'Uncommon';
+
+  const premium = forceMinRarity === 'Epic' || forceMinRarity === 'Relic';
+  if (picked === 'Relic' && !premium) picked = 'Epic';
 
   if (forceMinRarity) {
     const minIdx = order.indexOf(forceMinRarity);

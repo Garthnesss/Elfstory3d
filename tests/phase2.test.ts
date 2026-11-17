@@ -48,9 +48,6 @@ function makeFlags(overrides: Partial<WorldFlags> = {}): WorldFlags {
     readLoreIds: [],
     confrontedBosses: [],
     waystonesAttuned: 0,
-    bestiaryKills: {},
-    unlockedFeats: [],
-    townUpgrades: { apothecary: 0, smithy: 0, watchtower: 0 },
     ...overrides,
   };
 }

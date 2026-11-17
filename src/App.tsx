@@ -1,4 +1,3 @@
-import { User } from 'firebase/auth';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CornerDownLeft, Gamepad2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActionDock } from './components/ActionDock';
@@ -19,7 +18,6 @@ import { SpecialEncounterModal, SpecialPrompt } from './components/SpecialEncoun
 import { TutorialOverlay } from './components/TutorialOverlay';
 import { LocalSlotSummary, TitleScreen } from './components/TitleScreen';
 import { TopHud } from './components/TopHud';
-import { TownUpgradesModal } from './components/TownUpgradesModal';
 import { TravelModal } from './components/TravelModal';
 import { resolveMusicTheme, soundEngine } from './game/audio';
 import { CameraYawIndex, normalizeYawIndex, rotateStepByYaw } from './game/cameraYaw';
@@ -50,15 +48,8 @@ import {
   readAllSlotStates,
   stampBundle,
 } from './game/saveSlots';
-import { canOfferReturnToEnding, pruneAbyssZones } from './game/runRules';
-import {
-  LifetimeEvent,
-  LifetimeStats,
-  applyLifetimeEvent,
-  deepestDepthForZones,
-  loadLifetime,
-  saveLifetime,
-} from './game/lifetime';
+import { GarthEvent, formatGarthLine, pickGarthLine, shouldQuip } from './game/garthVoice';
+import { NORMAL_KILL_DROP_CHANCE, bossBlockingDescent, deepestDepthForZones, canOfferReturnToEnding, pruneAbyssZones } from './game/runRules';
 import {
   GameSettings,
   isTutorialDone,
@@ -78,28 +69,7 @@ import {
   TUTORIAL_STEPS,
   TutorialBaseline,
 } from './game/tutorial';
-import {
-  checkAuthRedirectResult,
-  CloudSavePayload,
-  CloudSaveSummary,
-  deleteCloudSlot,
-  loadAllCloudSlots,
-  loadChroniclesFromCloud,
-  packZones,
-  recordChronicleToCloud,
-  SAVE_SLOTS,
-  saveSlotToCloud,
-  signInWithGoogle,
-  signOutGoogle,
-  subscribeAuth,
-  unpackZones,
-} from './game/cloudSave';
-import {
-  BESTIARY_DEFS,
-  computeBestiaryRanks,
-  FEAT_DEFS,
-  TOWN_UPGRADE_DEFS,
-} from './game/codex';
+import { packZones, SAVE_SLOTS, unpackZones } from './game/zonePacking';
 import {
   applyStatus,
   calculatePlayerHit,
@@ -169,19 +139,6 @@ const CHRONICLES_KEY = 'ashen_glyph_chronicles_v1';
 // SavedBundle, slot keys, SAVE_VERSION stamping and the per-slot read
 // results live in game/saveSlots.ts (Phase 4) so the versioning and
 // corruption-isolation logic is unit-testable without a DOM.
-
-function formatCloudError(err: unknown): string {
-  const raw = err instanceof Error ? err.message : String(err ?? 'network error');
-  if (raw.startsWith('{')) {
-    try {
-      const parsed = JSON.parse(raw) as { error?: string };
-      if (parsed?.error) return parsed.error;
-    } catch {
-      // fall through
-    }
-  }
-  return raw;
-}
 
 function hydrateSavedBundle(rawBundle: SavedBundle): SavedBundle {
   return {
@@ -292,8 +249,7 @@ function makeCompanion(kind: CompanionKind, x: number, y: number, level = 1): Co
 
 function getSightRadius(p: PlayerState, flags?: WorldFlags): number {
   const owlBonus = p.companion?.kind === 'starlight_owl' && p.companion.hp > 0 ? 1 : 0;
-  const watchtowerBonus = (flags?.townUpgrades?.watchtower ?? 0) >= 2 ? 1 : 0;
-  return 8 + owlBonus + watchtowerBonus;
+  return 8 + owlBonus;
 }
 
 function placeCompanionNear(zone: ZoneMap, px: number, py: number): { x: number; y: number } {
@@ -377,9 +333,6 @@ function createInitialFlags(): WorldFlags {
     readLoreIds: [],
     confrontedBosses: [],
     waystonesAttuned: 0,
-    bestiaryKills: {},
-    unlockedFeats: [],
-    townUpgrades: { apothecary: 0, smithy: 0, watchtower: 0 },
   };
 }
 
@@ -520,6 +473,7 @@ export default function App() {
 
   const [armedSkill, setArmedSkill] = useState<SkillId | null>(null);
   const [aimedTarget, setAimedTarget] = useState<{ x: number; y: number } | null>(null);
+  const announcedVaultDoorsRef = useRef<Set<string>>(new Set());
   const [autoExploring, setAutoExploring] = useState(false);
   const [walkPath, setWalkPath] = useState<Array<{ x: number; y: number }>>([]);
   const [activeDialogue, setActiveDialogue] = useState<{ npcId: string; nodeId: string } | null>(
@@ -584,24 +538,7 @@ export default function App() {
   // into every later save so the fallen state can never be overwritten.
   const deathStampRef = useRef<{ deadAtMs: number; deathNote?: string } | null>(null);
 
-  // Phase 5 lifetime stats: per-device record kept OUTSIDE save bundles
-  // (game/lifetime.ts). Mirrored in a ref so event funnels inside stable
-  // callbacks always read the freshest totals.
-  const [lifetime, setLifetime] = useState<LifetimeStats>(() => loadLifetime());
-  const lifetimeRef = useRef(lifetime);
-  const bumpLifetime = useCallback((event: LifetimeEvent) => {
-    const next = applyLifetimeEvent(lifetimeRef.current, event);
-    if (next === lifetimeRef.current) return;
-    lifetimeRef.current = next;
-    setLifetime(next);
-    saveLifetime(next);
-  }, []);
-  const [cloudSlotMap, setCloudSlotMap] = useState<
-    Partial<Record<SaveSlotId, { summary: CloudSaveSummary; payload: CloudSavePayload }>>
-  >({});
-
   const [localChronicles, setLocalChronicles] = useState<ChronicleEntry[]>(() => readLocalChronicles());
-  const [cloudChronicles, setCloudChronicles] = useState<ChronicleEntry[]>([]);
   const [showHallOfFame, setShowHallOfFame] = useState(false);
   const [showMobilePad, setShowMobilePad] = useState(true);
   const [zoneBanner, setZoneBanner] = useState<{
@@ -700,10 +637,6 @@ export default function App() {
   // or NG+ ascension), where every quest may complete once more.
   const questRewardGuardRef = useRef<Set<string>>(new Set());
 
-  const [authUser, setAuthUser] = useState<User | null>(null);
-  const [authBusy, setAuthBusy] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
-  const [cloudSaving, setCloudSaving] = useState(false);
 
   const currentZone = zones[currentZoneId];
   const derived = useMemo(() => computeDerivedStats(player, worldFlags), [player, worldFlags]);
@@ -811,37 +744,10 @@ export default function App() {
     setTutorialStepIdx(0);
   }, []);
 
-  const mergedChronicles = useMemo(() => {
-    const byId = new Map<string, ChronicleEntry>();
-    for (const c of localChronicles) byId.set(c.id, c);
-    for (const c of cloudChronicles) byId.set(c.id, c);
-    return Array.from(byId.values()).sort((a, b) => b.createdAtMs - a.createdAtMs);
-  }, [cloudChronicles, localChronicles]);
-
-  useEffect(() => {
-    void checkAuthRedirectResult().catch((err) => {
-      setAuthError(err instanceof Error ? err.message : 'Google Sign-In redirect failed.');
-    });
-    const unsub = subscribeAuth(async (user) => {
-      setAuthUser(user);
-      if (user) {
-        try {
-          const [slots, chrons] = await Promise.all([
-            loadAllCloudSlots(user.uid),
-            loadChroniclesFromCloud(user.uid),
-          ]);
-          setCloudSlotMap(slots);
-          setCloudChronicles(chrons);
-        } catch {
-          // Non-fatal if offline or no save yet
-        }
-      } else {
-        setCloudSlotMap({});
-        setCloudChronicles([]);
-      }
-    });
-    return () => unsub();
-  }, []);
+  const mergedChronicles = useMemo(
+    () => [...localChronicles].sort((a, b) => b.createdAtMs - a.createdAtMs),
+    [localChronicles]
+  );
 
   const pushLog = useCallback((text: string, tone: LogEntry['tone'] = 'neutral', turnOverride?: number) => {
     setLogs((prev) => [
@@ -997,15 +903,11 @@ export default function App() {
       };
 
       // Phase 5: a chronicle entry is written exactly once per run ending,
-      // so this is the single funnel for lifetime victory/death counting —
+      // so this is the single funnel for victory/death chronicle writes —
       // plus the deepest floor and NG+ cycle the run reached.
       if (outcome === 'victory') {
-        bumpLifetime({ kind: 'victory' });
       } else {
-        bumpLifetime({ kind: 'death' });
       }
-      bumpLifetime({ kind: 'floorReached', depth: deepestDepth });
-      bumpLifetime({ kind: 'cycleReached', cycle: ngPlusCycleRef.current });
 
       setLocalChronicles((prev) => {
         const next = [entry, ...prev].slice(0, 30);
@@ -1017,29 +919,15 @@ export default function App() {
         return next;
       });
 
-      if (authUser) {
-        recordChronicleToCloud(authUser.uid, entry)
-          .then(() => {
-            setCloudChronicles((prev) => [entry, ...prev]);
-          })
-          .catch((err) => {
-            pushLog(
-              `Cloud chronicle sync failed: ${formatCloudError(err)}.`,
-              'danger',
-              finalPlayer.turnsElapsed
-            );
-          });
-      }
     },
-    [authUser, bumpLifetime, currentZone.depth, pushLog]
+    [currentZone.depth, pushLog]
   );
 
   const saveBundleToStorage = useCallback(
     (
       bundle: SavedBundle,
       buildTitleOverride?: string,
-      slotOverride?: SaveSlotId,
-      skipCloud = false
+      slotOverride?: SaveSlotId
     ) => {
       const targetSlot = slotOverride ?? activeSlot;
       // Phase 4: every persisted bundle carries the format version, the
@@ -1048,7 +936,7 @@ export default function App() {
       const stamped: SavedBundle = {
         ...stampBundle(bundle),
         // Audit (Nov 16): Abyss floors far from the player are dropped from
-        // the persisted copy so deep runs stay under the cloud size cap;
+        // the persisted copy so deep runs stay small in browser storage;
         // they regenerate on entry. Live state is untouched.
         zones: pruneAbyssZones(bundle.zones, bundle.currentZoneId),
         difficulty: bundle.difficulty ?? difficultyRef.current,
@@ -1109,59 +997,21 @@ export default function App() {
       } catch {
         localSaved = false;
         pushLog(
-          'Warning: Local save failed (browser storage quota exceeded). Sign in for cloud saves or clear an unused slot.',
+          'Warning: Local save failed (browser storage quota exceeded). Clear an unused slot.',
           'danger',
           bundle.player.turnsElapsed
         );
       }
-      if (authUser && !skipCloud) {
-        saveSlotToCloud(authUser.uid, targetSlot, stamped, bTitle)
-          .then(() => {
-            setCloudSlotMap((prev) => ({
-              ...prev,
-              [targetSlot]: {
-                summary: {
-                  slotId: targetSlot,
-                  starterClass: bundle.player.starterClass,
-                  level: bundle.player.level,
-                  zoneId: bundle.currentZoneId,
-                  zoneName: bundle.zones[bundle.currentZoneId]?.name ?? 'Oakhaven Outpost',
-                  buildTitle: bTitle,
-                  kills: bundle.player.kills,
-                  gold: bundle.player.gold,
-                  updatedAtMs: Date.now(),
-                  completedAtMs: stamped.completedAtMs,
-                  ngPlusCycle: stamped.ngPlusCycle,
-                  hardcore: stamped.hardcore,
-                  deadAtMs: stamped.deadAtMs,
-                  deathNote: stamped.deathNote,
-                },
-                payload: stamped,
-              },
-            }));
-          })
-          .catch((err) => {
-            const msg = formatCloudError(err);
-            pushLog(
-              localSaved
-                ? `Saved locally; cloud save sync failed: ${msg}`
-                : `Cloud save sync also failed: ${msg}`,
-              'danger',
-              bundle.player.turnsElapsed
-            );
-          });
-      }
       return localSaved;
     },
-    [activeSlot, authUser, pushLog]
+    [activeSlot, pushLog]
   );
 
   // --- Autosave (P0) -------------------------------------------------------
   // Previously a run was only persisted on zone transition or by manually
   // saving from the pause menu, so an hour of play on one floor was lost to
   // a tab close / crash. Now: local autosave every 25 turns while playing,
-  // plus a final local save on tab hide / close. Local-only (skipCloud) to
-  // avoid Firestore write spam; zone transitions and manual saves still sync.
+  // plus a final local save on tab hide / close.
   const autosaveStateRef = useRef<{
     player: PlayerState;
     zones: Record<ZoneId, ZoneMap>;
@@ -1191,8 +1041,7 @@ export default function App() {
     saveBundleToStorage(
       { player, zones, currentZoneId, worldFlags, quests, merchantStocks, logs },
       undefined,
-      activeSlot,
-      true
+      activeSlot
     );
   }, [player, zones, currentZoneId, worldFlags, quests, merchantStocks, logs, gameState, activeSlot, saveBundleToStorage]);
 
@@ -1211,8 +1060,7 @@ export default function App() {
           logs: s.logs,
         },
         undefined,
-        activeSlot,
-        true
+        activeSlot
       );
     };
     const onVisibility = () => {
@@ -1293,43 +1141,6 @@ export default function App() {
   }, [gameState, activeSlot, saveBundleToStorage]);
   // --- End hardcore death stamp --------------------------------------------
 
-  // --- Lifetime deepest floor (P5) -----------------------------------------
-  // Track the deepest floor as it is reached, not just at a run's end, so
-  // an in-progress (or quietly abandoned) delve still counts.
-  useEffect(() => {
-    if (gameState !== 'PLAYING') return;
-    const deepest = deepestDepthForZones(worldFlags.discoveredZones, currentZone.depth);
-    if (deepest > lifetimeRef.current.deepestFloor) {
-      bumpLifetime({ kind: 'floorReached', depth: deepest });
-    }
-  }, [gameState, currentZoneId, currentZone.depth, worldFlags.discoveredZones, bumpLifetime]);
-  // --- End lifetime deepest floor ------------------------------------------
-
-  const handleSignInGoogle = useCallback(async () => {
-    setAuthBusy(true);
-    setAuthError(null);
-    try {
-      await signInWithGoogle();
-      soundEngine.playClick();
-    } catch (err) {
-      setAuthError(err instanceof Error ? err.message : 'Google Sign-In could not complete.');
-    } finally {
-      setAuthBusy(false);
-    }
-  }, []);
-
-  const handleSignOutGoogle = useCallback(async () => {
-    setAuthBusy(true);
-    setAuthError(null);
-    try {
-      await signOutGoogle();
-      soundEngine.playClick();
-    } catch (err) {
-      setAuthError(err instanceof Error ? err.message : 'Sign out failed.');
-    } finally {
-      setAuthBusy(false);
-    }
-  }, []);
 
   const handleStartNew = useCallback(
     (
@@ -1343,7 +1154,7 @@ export default function App() {
       // game-over / victory screens, which routes through here) discards
       // that slot's saved run. Always confirm first.
       const targetSlot = slotOverride ?? activeSlot;
-      if (localSlotMap[targetSlot] || cloudSlotMap[targetSlot]) {
+      if (localSlotMap[targetSlot]) {
         const ok = window.confirm(
           `${targetSlot === 'slot_1' ? 'Slot 1' : targetSlot === 'slot_2' ? 'Slot 2' : 'Slot 3'} already holds a saved expedition. Starting a new adventure will overwrite it. Continue?`
         );
@@ -1365,7 +1176,6 @@ export default function App() {
       applyCycle(0);
       applyHardcore(hardcoreChoice ?? hardcoreRef.current);
       deathStampRef.current = null;
-      bumpLifetime({ kind: 'expeditionStarted' });
       const freshZones = createInitialZones();
       const freshPlayer = createInitialPlayer(starterClass);
       const initialFlags = createInitialFlags();
@@ -1401,7 +1211,7 @@ export default function App() {
         {
           id: uid('log'),
           turn: 0,
-          text: `Garth "Big Dick" Elfstrom arrives in Oakhaven under the ${starterClass} oath, tasked with reclaiming the Ashen Glyph before the Ember Blight spreads.`,
+          text: `Garth "Big Dick" Elfstrom arrives in Oakhaven under the ${starterClass} oath, announces himself to a town that did not ask, and vows to reclaim the Ashen Glyph before the Ember Blight spreads.`,
           tone: 'quest',
         },
         {
@@ -1423,8 +1233,6 @@ export default function App() {
       applyCycle,
       applyDifficulty,
       applyHardcore,
-      bumpLifetime,
-      cloudSlotMap,
       localSlotMap,
       updateCompletedAtMs,
     ]
@@ -1452,7 +1260,6 @@ export default function App() {
     deathStampRef.current = isBundleDead(data)
       ? { deadAtMs: data.deadAtMs!, deathNote: data.deathNote }
       : null;
-    bumpLifetime({ kind: 'cycleReached', cycle: bundleCycle(data) });
     const defaultCompanionKind: CompanionKind =
       data.player.starterClass === 'Runecaster' ? 'starlight_owl' : 'silverwind_lynx';
     const normalizedPlayer: PlayerState = {
@@ -1468,9 +1275,6 @@ export default function App() {
     const normalizedFlags: WorldFlags = {
       ...createInitialFlags(),
       ...data.worldFlags,
-      bestiaryKills: data.worldFlags?.bestiaryKills ?? {},
-      unlockedFeats: data.worldFlags?.unlockedFeats ?? [],
-      townUpgrades: data.worldFlags?.townUpgrades ?? { apothecary: 0, smithy: 0, watchtower: 0 },
     };
     const baselineZones = createInitialZones();
     const mergedSavedZones: Record<ZoneId, ZoneMap> = {
@@ -1512,7 +1316,7 @@ export default function App() {
     // applies the death stamp, closing the tab-close race as well.
     setGameState(normalizedPlayer.hp <= 0 ? 'GAME_OVER' : 'PLAYING');
     soundEngine.playClick();
-  }, [applyCycle, applyDifficulty, applyHardcore, bumpLifetime, updateCompletedAtMs]);
+  }, [applyCycle, applyDifficulty, applyHardcore, updateCompletedAtMs]);
 
   // Phase 5: New Game+ ascension. The world is rebuilt completely fresh
   // (the same construction a new expedition uses) while the character
@@ -1602,11 +1406,9 @@ export default function App() {
     setLogs(ascendLogs);
     runStartedAtRef.current = Date.now();
     // Tidy-up: the ascended cycle is a fresh expedition — its clock
-    // starts over (the finished run's time stays in the lifetime stats).
+    // starts over.
     playTimeBaseRef.current = 0;
     setTutorialStepIdx(null);
-    bumpLifetime({ kind: 'expeditionStarted' });
-    bumpLifetime({ kind: 'cycleReached', cycle: nextCycle });
     setGameState('PLAYING');
     // Persist immediately, so the ascended run is the slot's state even if
     // the tab closes before the next autosave.
@@ -1627,7 +1429,7 @@ export default function App() {
       undefined,
       activeSlot
     );
-  }, [activeSlot, applyCycle, bumpLifetime, player, saveBundleToStorage]);
+  }, [activeSlot, applyCycle, player, saveBundleToStorage]);
 
   const handleContinueSaved = useCallback(
     (slotId: SaveSlotId) => {
@@ -1644,30 +1446,12 @@ export default function App() {
     [applySavedBundle, localSlotMap, slotIssues]
   );
 
-  const handleContinueCloud = useCallback(
-    (slotId: SaveSlotId) => {
-      const entry = cloudSlotMap[slotId];
-      if (!entry) return;
-      // Tidy-up: cloud bundles get the same future-version refusal as
-      // local ones — the local read path checks inside parseStoredBundle,
-      // but the cloud read path previously handed newer-build saves
-      // straight to the loader.
-      const cloudVersion = entry.payload.version ?? 0;
-      if (cloudVersion > SAVE_VERSION) {
-        window.alert(futureVersionMessage(cloudVersion));
-        return;
-      }
-      applySavedBundle(entry.payload, slotId);
-    },
-    [applySavedBundle, cloudSlotMap]
-  );
-
   const handleDeleteSlot = useCallback(
     async (slotId: SaveSlotId) => {
-      // Deleting a save is irreversible (local + cloud) — confirm first.
-      if (localSlotMap[slotId] || cloudSlotMap[slotId]) {
+      // Deleting a save is irreversible — confirm first.
+      if (localSlotMap[slotId]) {
         const ok = window.confirm(
-          `Delete the saved expedition in ${slotId === 'slot_1' ? 'Slot 1' : slotId === 'slot_2' ? 'Slot 2' : 'Slot 3'}? This removes both the local and cloud save and cannot be undone.`
+          `Delete the saved expedition in ${slotId === 'slot_1' ? 'Slot 1' : slotId === 'slot_2' ? 'Slot 2' : 'Slot 3'}? This cannot be undone.`
         );
         if (!ok) return;
       }
@@ -1693,52 +1477,8 @@ export default function App() {
         delete next[slotId];
         return next;
       });
-      if (authUser) {
-        try {
-          await deleteCloudSlot(authUser.uid, slotId);
-          setCloudSlotMap((prev) => {
-            const next = { ...prev };
-            delete next[slotId];
-            return next;
-          });
-        } catch {
-          // ignore
-        }
-      }
     },
-    [authUser, cloudSlotMap, localSlotMap]
-  );
-
-  const evaluateFeatsAndApply = useCallback(
-    (
-      p: PlayerState,
-      flags: WorldFlags,
-      turnOverride?: number
-    ): { nextPlayer: PlayerState; nextFlags: WorldFlags } => {
-      let nextP = { ...p };
-      const unlocked = [...(flags.unlockedFeats ?? [])];
-      let unlockedAny = false;
-      for (const feat of FEAT_DEFS) {
-        if (unlocked.includes(feat.id)) continue;
-        if (feat.check(nextP, flags)) {
-          unlocked.push(feat.id);
-          unlockedAny = true;
-          if (feat.rewardGold) nextP.gold += feat.rewardGold;
-          pushLog(
-            `Feat Unlocked — ${feat.title}! (${feat.rewardLabel})`,
-            'quest',
-            turnOverride ?? nextP.turnsElapsed
-          );
-        }
-      }
-      if (!unlockedAny) return { nextPlayer: p, nextFlags: flags };
-      soundEngine.playCodexUnlock();
-      return {
-        nextPlayer: nextP,
-        nextFlags: { ...flags, unlockedFeats: unlocked },
-      };
-    },
-    [pushLog]
+    [localSlotMap]
   );
 
   const grantXpAndCheckLevel = useCallback(
@@ -1837,30 +1577,9 @@ export default function App() {
         statuses: [...curPlayer.statuses],
       };
 
-      const apothecaryLv = activeFlags.townUpgrades?.apothecary ?? 0;
-      const watchtowerLv = activeFlags.townUpgrades?.watchtower ?? 0;
-
       if (!target.isTown) {
-        if (hasAffix(movedPlayer, 'arcane_ward') || watchtowerLv >= 2) {
+        if (hasAffix(movedPlayer, 'arcane_ward')) {
           applyStatus(movedPlayer.statuses, 'shielded', 4, 4);
-        }
-        if (watchtowerLv >= 1) {
-          for (let y = 0; y < target.height; y++) {
-            for (let x = 0; x < target.width; x++) {
-              const t = target.tiles[y][x];
-              if (t.kind === 'stairs_down' || t.kind === 'waystone') {
-                t.explored = true;
-              }
-            }
-          }
-        }
-        if (apothecaryLv >= 2) {
-          const healPot = movedPlayer.inventory.find((i) => i.consumableKind === 'heal_potion');
-          const qty = healPot?.quantity ?? 0;
-          if (qty < 2) {
-            movedPlayer = addItemToPlayer(movedPlayer, createConsumable('heal_potion', 1));
-            pushLog('Mira’s Stillhouse satchel supplies a fresh Crimson Draught (+1).', 'loot', movedPlayer.turnsElapsed);
-          }
         }
       }
 
@@ -1904,9 +1623,6 @@ export default function App() {
         };
       }
 
-      const featRes = evaluateFeatsAndApply(movedPlayer, nextFlags, movedPlayer.turnsElapsed);
-      movedPlayer = featRes.nextPlayer;
-      nextFlags = featRes.nextFlags;
 
       computeVisibility(target, movedPlayer.x, movedPlayer.y, getSightRadius(movedPlayer, nextFlags));
       const nextZones = { ...curZones, [targetZoneId]: target };
@@ -1935,10 +1651,10 @@ export default function App() {
         logs,
       });
     },
-    [addItemToPlayer, evaluateFeatsAndApply, logs, merchantStocks, pushLog, quests, saveBundleToStorage, worldFlags]
+    [addItemToPlayer, logs, merchantStocks, pushLog, quests, saveBundleToStorage, worldFlags]
   );
 
-  // Resolve killing an enemy (loot drops, XP, quest hooks, bestiary, feats, boss victory)
+  // Resolve killing an enemy (loot drops, XP, quest hooks, boss victory)
   const handleEnemyDeath = useCallback(
     (
       enemy: Enemy,
@@ -1977,35 +1693,7 @@ export default function App() {
         return { nextPlayer: { ...p }, nextZone, nextFlags: baseFlags, victoryTriggered: false };
       }
 
-      const prevKills = baseFlags.bestiaryKills?.[enemy.archetype] ?? 0;
-      const newSpeciesKills = prevKills + 1;
-      let nextFlags: WorldFlags = {
-        ...baseFlags,
-        bestiaryKills: {
-          ...(baseFlags.bestiaryKills ?? {}),
-          [enemy.archetype]: newSpeciesKills,
-        },
-      };
-
-      const bestiaryDef = BESTIARY_DEFS[enemy.archetype];
-      if (bestiaryDef) {
-        if (newSpeciesKills === bestiaryDef.hunterKills) {
-          soundEngine.playCodexUnlock();
-          pushLog(
-            `Bestiary Hunter rank unlocked (${bestiaryDef.name}) — codex updated!`,
-            'quest',
-            p.turnsElapsed
-          );
-        }
-        if (newSpeciesKills === bestiaryDef.slayerKills) {
-          soundEngine.playCodexUnlock();
-          pushLog(
-            `Bestiary Slayer rank mastered (${bestiaryDef.name}) — codex entry complete!`,
-            'arcane',
-            p.turnsElapsed
-          );
-        }
-      }
+      let nextFlags: WorldFlags = { ...baseFlags };
 
       if (enemy.archetype === 'boss_bone_cantor' && !enemy.name.startsWith('Abyssal Echo')) {
         nextFlags = { ...nextFlags, cantorDefeated: true };
@@ -2021,8 +1709,7 @@ export default function App() {
       let nextP = { ...p, kills: p.kills + 1, gold: p.gold + enemy.goldReward };
       // Phase 5: every kill in the game funnels through this handler (the
       // Grave Husk Deathless cheat returns above, correctly earning no
-      // credit), so lifetime kills are counted here.
-      bumpLifetime({ kind: 'kills', count: 1 });
+      // credit).
       const nextZ = {
         ...zone,
         enemies: zone.enemies.filter((e) => e.id !== enemy.id),
@@ -2109,7 +1796,7 @@ export default function App() {
           y: enemy.y,
           item: rareDrop,
         });
-      } else if (enemy.isBoss || enemy.isElite || dropRoll < 0.42 || earlyGuarantee) {
+      } else if (enemy.isBoss || enemy.isElite || dropRoll < NORMAL_KILL_DROP_CHANCE || earlyGuarantee) {
         const minRar = enemy.isBoss ? 'Epic' : enemy.isElite ? 'Rare' : undefined;
         const dropped = earlyGuarantee
           ? generateProceduralItem(zone.depth)
@@ -2154,9 +1841,6 @@ export default function App() {
         }
       }
 
-      const featRes = evaluateFeatsAndApply(nextP, nextFlags, nextP.turnsElapsed);
-      nextP = featRes.nextPlayer;
-      nextFlags = featRes.nextFlags;
       setWorldFlags(nextFlags);
 
       if (enemy.id === 'boss_morvath') {
@@ -2238,7 +1922,7 @@ export default function App() {
 
       return { nextPlayer: nextP, nextZone: nextZ, nextFlags, victoryTriggered };
     },
-    [addItemToPlayer, bumpLifetime, evaluateFeatsAndApply, grantXpAndCheckLevel, pushLog, recordRunChronicle, spawnBurst, spawnFloating, worldFlags]
+    [addItemToPlayer, grantXpAndCheckLevel, pushLog, recordRunChronicle, spawnBurst, spawnFloating, worldFlags]
   );
 
   // Full Enemy Turn Simulation
@@ -2866,7 +2550,7 @@ export default function App() {
             setSpecialPrompt({
               title: 'Vaelen, Bone Cantor',
               subtitle: 'Floor 2 Ossuary Confrontation',
-              body: 'A skeletal choir-master lowers his carved femur baton as your lantern touches the ossuary arch. "Another mortal chasing bronze bells and silver graves... Speak before my dirge begins."',
+              body: 'A skeletal choir-master lowers his carved femur baton as your lantern touches the ossuary arch. "Another hero. Let me guess — you have a nickname." He sighs, a remarkable feat without lungs. "Speak before my dirge begins. It is in four movements. You will not survive the second."',
               options: [
                 {
                   id: 'pacify_vaelen',
@@ -2949,7 +2633,7 @@ export default function App() {
             setSpecialPrompt({
               title: 'Inquisitor Serath',
               subtitle: 'Floor 4 Crucible Confrontation',
-              body: 'Cinder-wreathed iron plates clang as Inquisitor Serath raises his great-flail. "None pass into the Sovereign’s sanctum unpurged by flame!"',
+              body: 'Cinder-wreathed iron plates clang as Inquisitor Serath raises his great-flail. "None pass into the Sovereign’s sanctum unpurged by flame!" He squints at you. "…Are you the one who keeps writing your name on the walls? In letters THAT size?"',
               options: [
                 {
                   id: 'stagger_serath',
@@ -3023,7 +2707,7 @@ export default function App() {
             setSpecialPrompt({
               title: 'Malakor, Sovereign of Cinder',
               subtitle: 'Floor 5 Throne Confrontation',
-              body: 'Beside an ember-lit dais, an armored monarch rises, crown glowing white-hot. "Have you come to claim my crown, delver—or merely test whether your name endures?"',
+              body: 'Beside an ember-lit dais, an armored monarch rises, crown glowing white-hot. "So. Garth Elfstrom. My spies have sent reports." He lifts a scroll that unrolls to the floor. "Most of them are complaints. Have you come to claim my crown — or to tell me about the bridge again?"',
               options: [
                 {
                   id: 'unravel_malakor',
@@ -3151,6 +2835,11 @@ export default function App() {
       }
 
       if (tile.kind === 'stairs_down') {
+        const guardian = bossBlockingDescent(z);
+        if (guardian) {
+          pushLog(`${guardian} still stands — the stair seal will not yield while it lives.`, 'danger');
+          return true;
+        }
         if (z.id === 'oakhaven') {
           transitionToZone('dungeon_1', 'spawn', p, mergedZones);
           return true;
@@ -3605,10 +3294,9 @@ export default function App() {
               ? worldFlags.readLoreIds
               : [...worldFlags.readLoreIds, loreId],
           };
-          const featRes = evaluateFeatsAndApply(p, updatedFlags);
-          setPlayer(featRes.nextPlayer);
+          setPlayer(p);
           setZones(mergedZones);
-          setWorldFlags(featRes.nextFlags);
+          setWorldFlags(updatedFlags);
           // Phase 3 survey quest: progress is the count of unique steles
           // transcribed (WorldFlags.readLoreIds); stage mirrors it (cap 6).
           setQuests((prev) => {
@@ -3793,10 +3481,9 @@ export default function App() {
               ? worldFlags.readLoreIds
               : [...worldFlags.readLoreIds, 'lore_waystone'],
           };
-          const featRes = evaluateFeatsAndApply(attuneBonusP, updatedFlags);
-          setPlayer(featRes.nextPlayer);
+          setPlayer(attuneBonusP);
           setZones((prev) => ({ ...prev, [z.id]: { ...z } }));
-          setWorldFlags(featRes.nextFlags);
+          setWorldFlags(updatedFlags);
           setQuests((prev) => {
             const cur = prev.outrider_oath;
             const targetStage = nextAttuned >= 2 ? 3 : 2;
@@ -3889,7 +3576,7 @@ export default function App() {
         computeVisibility(z, p.x, p.y, getSightRadius(p, worldFlags));
         setPlayer(p);
         setZones((prev) => ({ ...prev, [z.id]: { ...z } }));
-        const maxUpgradeLevel = (worldFlags.townUpgrades?.smithy ?? 0) >= 2 ? 4 : 3;
+        const maxUpgradeLevel = 3;
         const equipTarget = p.equipped.weapon ?? p.equipped.armor ?? p.equipped.ring ?? p.equipped.amulet;
         const canTemper = Boolean(equipTarget && equipTarget.upgradeLevel < maxUpgradeLevel);
         const freeTemper = p.attributes.might >= 3;
@@ -3901,10 +3588,9 @@ export default function App() {
               ? worldFlags.readLoreIds
               : [...worldFlags.readLoreIds, 'lore_forge'],
           };
-          const featRes = evaluateFeatsAndApply(updatedPlayer, updatedFlags);
           setZones((prev) => ({ ...prev, [z.id]: { ...z } }));
-          setWorldFlags(featRes.nextFlags);
-          return featRes.nextPlayer;
+          setWorldFlags(updatedFlags);
+          return updatedPlayer;
         };
 
         const options: SpecialPrompt['options'] = [];
@@ -3990,10 +3676,9 @@ export default function App() {
               ? worldFlags.readLoreIds
               : [...worldFlags.readLoreIds, 'lore_altar'],
           };
-          const featRes = evaluateFeatsAndApply(updatedPlayer, updatedFlags);
           setZones((prev) => ({ ...prev, [z.id]: { ...z } }));
-          setWorldFlags(featRes.nextFlags);
-          return featRes.nextPlayer;
+          setWorldFlags(updatedFlags);
+          return updatedPlayer;
         };
         const d = computeDerivedStats(p, worldFlags);
         const bloodCost = Math.max(1, Math.min(p.hp - 1, Math.round(d.maxHp * 0.25)));
@@ -4058,7 +3743,7 @@ export default function App() {
 
       return false;
     },
-    [addItemToPlayer, evaluateFeatsAndApply, grantXpAndCheckLevel, player, pushLog, spawnBurst, spawnFloating, transitionToZone, triggerShake, worldFlags, zones]
+    [addItemToPlayer, grantXpAndCheckLevel, player, pushLog, spawnBurst, spawnFloating, transitionToZone, triggerShake, worldFlags, zones]
   );
 
   // Execute Active Skill
@@ -5069,21 +4754,18 @@ export default function App() {
       }
 
       const d = computeDerivedStats(player, worldFlags);
-      const apothecaryBonusHp = (worldFlags.townUpgrades?.apothecary ?? 0) >= 1 ? 10 : 0;
-      const apothecaryBonusMp = (worldFlags.townUpgrades?.apothecary ?? 0) >= 1 ? 6 : 0;
       let nextP = { ...player, inventory: nextInv };
       const nextZ = { ...currentZone, enemies: currentZone.enemies.map((e) => ({ ...e })) };
 
       if (item.consumableKind === 'heal_potion') {
         const amt =
-          Math.max(worldFlags.miraPotionTier > 1 ? 38 : 24, Math.round(d.maxHp * 0.35)) +
-          apothecaryBonusHp;
+          Math.max(worldFlags.miraPotionTier > 1 ? 38 : 24, Math.round(d.maxHp * 0.35));
         nextP.hp = Math.min(d.maxHp, nextP.hp + amt);
         soundEngine.playHeal();
         spawnFloating(nextP.x, nextP.y, `+${amt} HP`, '#4EA885');
         pushLog(`Drank Crimson Draught (+${amt} HP).`, 'loot');
       } else if (item.consumableKind === 'mana_potion') {
-        const mpAmt = Math.max(16, Math.round(d.maxMana * 0.4)) + apothecaryBonusMp;
+        const mpAmt = Math.max(16, Math.round(d.maxMana * 0.4));
         nextP.mana = Math.min(d.maxMana, nextP.mana + mpAmt);
         soundEngine.playSpell();
         spawnFloating(nextP.x, nextP.y, `+${mpAmt} MP`, '#60A5FA');
@@ -5234,7 +4916,6 @@ export default function App() {
       let nextFlags: WorldFlags = { ...worldFlags };
       let flagsChanged = false;
       let shouldClose = false;
-      let openUpgrades = false;
       let nextMerchant: string | null = null;
 
       for (const act of actions) {
@@ -5242,9 +4923,6 @@ export default function App() {
           shouldClose = true;
         } else if (act.type === 'open_merchant') {
           nextMerchant = act.merchantId;
-          shouldClose = true;
-        } else if (act.type === 'open_upgrades') {
-          openUpgrades = true;
           shouldClose = true;
         } else if (act.type === 'switch_companion') {
           const nextKind: CompanionKind =
@@ -5382,18 +5060,10 @@ export default function App() {
       }
 
       if (flagsChanged) {
-        const featRes = evaluateFeatsAndApply(nextP, nextFlags, nextP.turnsElapsed);
-        nextP = featRes.nextPlayer;
-        nextFlags = featRes.nextFlags;
         setWorldFlags(nextFlags);
       }
       setPlayer(nextP);
 
-      if (openUpgrades) {
-        setActiveDialogue(null);
-        setActivePanel('UPGRADES');
-        return;
-      }
       if (nextMerchant) {
         setActiveDialogue(null);
         setActiveMerchantId(nextMerchant);
@@ -5407,7 +5077,7 @@ export default function App() {
       }
       setActiveDialogue({ npcId: activeDialogue.npcId, nodeId: resolvedNextNode });
     },
-    [activeDialogue, addItemToPlayer, evaluateFeatsAndApply, grantXpAndCheckLevel, player, pushLog, worldFlags]
+    [activeDialogue, addItemToPlayer, grantXpAndCheckLevel, player, pushLog, worldFlags]
   );
 
   // Auto-Explore background stepper
@@ -5433,10 +5103,20 @@ export default function App() {
         pushLog('Auto-Explore paused: Afflicted by status damage.', 'danger');
         return;
       }
+      // Pause once per vault door. Re-pausing every time Z was pressed
+      // beside the same door left Auto-Explore stuck there for good
+      // (Nov 16 playtest).
       let adjacentVault = false;
       for (let dy = -1; dy <= 1; dy++) {
         for (let dx = -1; dx <= 1; dx++) {
-          if (currentZone.tiles[player.y + dy]?.[player.x + dx]?.kind === 'vault_door') {
+          const vx = player.x + dx;
+          const vy = player.y + dy;
+          const doorKey = `${currentZone.id}:${vx},${vy}`;
+          if (
+            currentZone.tiles[vy]?.[vx]?.kind === 'vault_door' &&
+            !announcedVaultDoorsRef.current.has(doorKey)
+          ) {
+            announcedVaultDoorsRef.current.add(doorKey);
             adjacentVault = true;
           }
         }
@@ -5450,7 +5130,21 @@ export default function App() {
       const target = findAutoExploreTarget(currentZone, player.x, player.y);
       if (!target.nextStep) {
         setAutoExploring(false);
-        pushLog('Floor exploration complete.', 'quest');
+        const pendingQuest = currentZone.tiles
+          .flat()
+          .find(
+            (t) =>
+              t.explored &&
+              !t.used &&
+              (t.kind === 'contraband_cache' || t.kind === 'herb_node' || t.kind === 'whispering_bell')
+          );
+        if (pendingQuest) {
+          pushLog(`Floor explored — ${pendingQuest.label ?? 'a quest objective'} is still here.`, 'quest');
+        } else if (target.reason === 'stairs') {
+          pushLog('Floor explored — the stairs down are beside you.', 'quest');
+        } else {
+          pushLog('Floor exploration complete.', 'quest');
+        }
         return;
       }
       attemptStep(target.nextStep.x - player.x, target.nextStep.y - player.y);
@@ -5458,6 +5152,86 @@ export default function App() {
 
     return () => window.clearTimeout(timer);
   }, [activePanel, attemptStep, autoExploring, currentZone, derived.maxHp, gameState, player.hp, player.statuses, player.x, player.y, pushLog, specialPrompt]);
+
+  // Garth's voice (comedy tone, Nov 17, 2026): watch the run and let Garth
+  // react to kills, bosses, level-ups, low health, new floors, big loot and
+  // homecomings. Rate-limited in garthVoice.ts. Refs reset whenever play
+  // stops, so loading a save or starting a run never triggers a quip.
+  const voiceRef = useRef<{
+    kills: number;
+    level: number;
+    zoneId: string;
+    deepest: number;
+    wasInDungeon: boolean;
+    bossAlive: boolean;
+    low: boolean;
+    seenItems: Set<string>;
+    lastTurn: number;
+    lastLine: Partial<Record<GarthEvent, string>>;
+  } | null>(null);
+  useEffect(() => {
+    if (gameState !== 'PLAYING') {
+      voiceRef.current = null;
+      return;
+    }
+    const bossAlive = currentZone.enemies.some((e) => e.isBoss && e.hp > 0);
+    const hpRatio = player.hp / Math.max(1, derived.maxHp);
+    const v = voiceRef.current;
+    if (!v) {
+      voiceRef.current = {
+        kills: player.kills,
+        level: player.level,
+        zoneId: currentZone.id,
+        deepest: currentZone.isTown ? 0 : currentZone.depth,
+        wasInDungeon: !currentZone.isTown && currentZone.depth >= 1,
+        bossAlive,
+        low: hpRatio < 0.3,
+        seenItems: new Set(player.inventory.map((i) => i.id)),
+        lastTurn: player.turnsElapsed,
+        lastLine: {},
+      };
+      return;
+    }
+    const events: GarthEvent[] = [];
+    if (player.level > v.level) events.push('levelUp');
+    const inDungeon = !currentZone.isTown && currentZone.depth >= 1;
+    if (currentZone.id !== v.zoneId) {
+      // Only a personal-best depth earns a "deeper" line, and only a return
+      // from below earns a homecoming — stair-hopping stays quiet.
+      if (inDungeon && currentZone.depth > v.deepest) events.push('newFloor');
+      else if (currentZone.isTown && v.wasInDungeon) events.push('town');
+    } else if (player.kills > v.kills) {
+      events.push(v.bossAlive && !bossAlive ? 'bossKill' : 'kill');
+    }
+    if (hpRatio < 0.3 && !v.low && player.hp > 0) events.push('lowHp');
+    if (
+      player.inventory.some(
+        (i) => !v.seenItems.has(i.id) && (i.rarity === 'Epic' || i.rarity === 'Relic')
+      )
+    ) {
+      events.push('bigLoot');
+    }
+
+    v.kills = player.kills;
+    v.level = player.level;
+    v.zoneId = currentZone.id;
+    if (inDungeon) v.deepest = Math.max(v.deepest, currentZone.depth);
+    v.wasInDungeon = inDungeon;
+    v.bossAlive = bossAlive;
+    if (hpRatio < 0.3) v.low = true;
+    else if (hpRatio > 0.6) v.low = false;
+    for (const i of player.inventory) v.seenItems.add(i.id);
+
+    // One line per update at most; the first event listed wins.
+    for (const ev of events) {
+      if (!shouldQuip(ev, player.turnsElapsed - v.lastTurn, Math.random())) continue;
+      const line = pickGarthLine(ev, Math.random(), v.lastLine[ev]);
+      v.lastLine[ev] = line;
+      v.lastTurn = player.turnsElapsed;
+      pushLog(formatGarthLine(line), 'arcane');
+      break;
+    }
+  }, [currentZone, derived.maxHp, gameState, player, pushLog]);
 
   // Click-to-move path walker: steps the clicked path one real turn at a
   // time (same cadence family as Auto-Explore). Cancels on any manual
@@ -5643,7 +5417,7 @@ export default function App() {
       if (
         s.gameState === 'PLAYING' &&
         !s.specialPrompt &&
-        (s.activePanel === 'LEGEND' || s.activePanel === 'QUESTS' || s.activePanel === 'UPGRADES') &&
+        (s.activePanel === 'LEGEND' || s.activePanel === 'QUESTS') &&
         !isButtonFocused &&
         (e.key === 'Enter' || e.key === ' ')
       ) {
@@ -6034,11 +5808,6 @@ export default function App() {
     next.maxMana = d.maxMana;
     next.hp = Math.min(next.hp, d.maxHp);
     next.mana = Math.min(next.mana, d.maxMana);
-    const featRes = evaluateFeatsAndApply(next, worldFlags, next.turnsElapsed);
-    next = featRes.nextPlayer;
-    if (featRes.nextFlags !== worldFlags) {
-      setWorldFlags(featRes.nextFlags);
-    }
     setPlayer(next);
   };
 
@@ -6137,11 +5906,9 @@ export default function App() {
     const target = isEquipped
       ? Object.values(player.equipped).find((i) => i?.id === itemId)
       : player.inventory.find((i) => i.id === itemId);
-    const smithyLv = worldFlags.townUpgrades?.smithy ?? 0;
-    const maxUpgrade = smithyLv >= 2 ? 4 : 3;
+    const maxUpgrade = 3;
     if (!target || target.upgradeLevel >= maxUpgrade) return;
-    const discount = smithyLv >= 1 ? 0.75 : 1;
-    const goldCost = Math.max(8, Math.round((25 + target.upgradeLevel * 25) * discount));
+    const goldCost = Math.max(8, 25 + target.upgradeLevel * 25);
     if (player.gold < goldCost) return;
 
     const upgraded = upgradeEquipmentItem(target);
@@ -6166,66 +5933,21 @@ export default function App() {
     pushLog(`Tempered ${upgraded.name}!`, 'arcane');
   };
 
-  const handlePurchaseUpgrade = (upgradeId: 'apothecary' | 'smithy' | 'watchtower') => {
-    const def = TOWN_UPGRADE_DEFS.find((d) => d.id === upgradeId);
-    if (!def) return;
-    const currentUpgrades = worldFlags.townUpgrades ?? {
-      apothecary: 0,
-      smithy: 0,
-      watchtower: 0,
-    };
-    const curLv = currentUpgrades[upgradeId] ?? 0;
-    if (curLv >= def.maxLevel) return;
-    const spec = def.levels[curLv];
-    if (!spec || player.gold < spec.gold) return;
-
-    soundEngine.playLevelUp();
-    let nextP: PlayerState = {
-      ...player,
-      gold: player.gold - spec.gold,
-    };
-    let nextFlags: WorldFlags = {
-      ...worldFlags,
-      townUpgrades: {
-        ...currentUpgrades,
-        [upgradeId]: curLv + 1,
-      },
-    };
-    const featRes = evaluateFeatsAndApply(nextP, nextFlags, nextP.turnsElapsed);
-    nextP = featRes.nextPlayer;
-    nextFlags = featRes.nextFlags;
-    setWorldFlags(nextFlags);
-    setPlayer(nextP);
-    pushLog(`${def.name} upgraded to Tier ${curLv + 1}!`, 'quest');
-  };
-
   if (gameState === 'TITLE_MENU') {
     const localSummaries: Partial<Record<SaveSlotId, LocalSlotSummary>> = {};
     for (const s of SAVE_SLOTS) {
       if (localSlotMap[s]) localSummaries[s] = localSlotMap[s]!.summary;
     }
-    const cloudSummaries: Partial<Record<SaveSlotId, CloudSaveSummary>> = {};
-    for (const s of SAVE_SLOTS) {
-      if (cloudSlotMap[s]) cloudSummaries[s] = cloudSlotMap[s]!.summary;
-    }
-
     return (
       <>
         <TitleScreen
           activeSlot={activeSlot}
           onSelectSlot={setActiveSlot}
           localSlots={localSummaries}
-          cloudSlots={cloudSummaries}
           slotIssues={slotIssues}
           chronicleCount={mergedChronicles.length}
-          authUser={authUser}
-          authBusy={authBusy}
-          authError={authError}
-          onSignIn={handleSignInGoogle}
-          onSignOut={handleSignOutGoogle}
           onStartNew={handleStartNew}
           onContinueLocal={handleContinueSaved}
-          onContinueCloud={handleContinueCloud}
           onDeleteSlot={handleDeleteSlot}
           onOpenHallOfFame={() => setShowHallOfFame(true)}
           onOpenSettings={() => setShowSettings(true)}
@@ -6236,8 +5958,6 @@ export default function App() {
         {showHallOfFame && (
           <HallOfFameModal
             entries={mergedChronicles}
-            isSignedIn={Boolean(authUser)}
-            lifetime={lifetime}
             onClose={() => setShowHallOfFame(false)}
           />
         )}
@@ -6583,23 +6303,10 @@ export default function App() {
           onBuyItem={handleBuyItem}
           onSellItem={handleSellItem}
           onUpgradeItem={handleUpgradeItem}
-          onOpenTownUpgrades={() => {
-            setActiveMerchantId(null);
-            setActivePanel('UPGRADES');
-          }}
           onClose={() => {
             setActiveMerchantId(null);
             setActivePanel('NONE');
           }}
-        />
-      )}
-
-      {activePanel === 'UPGRADES' && (
-        <TownUpgradesModal
-          player={player}
-          worldFlags={worldFlags}
-          onPurchaseUpgrade={handlePurchaseUpgrade}
-          onClose={() => setActivePanel('NONE')}
         />
       )}
 
@@ -6674,9 +6381,6 @@ export default function App() {
           hardcore={hardcore}
           onRespawnAtTown={handleRespawnAtTown}
           respawnGoldCost={Math.floor(player.gold * 0.3)}
-          authUser={authUser}
-          cloudBusy={authBusy || cloudSaving}
-          onSignIn={handleSignInGoogle}
           canReturnToEnding={canOfferReturnToEnding({
             malakorDefeated: Boolean(worldFlags.malakorDefeated),
             hardcore,
@@ -6702,52 +6406,9 @@ export default function App() {
               deadAtMs: deathStampRef.current?.deadAtMs,
               deathNote: deathStampRef.current?.deathNote,
             };
-            const localOk = saveBundleToStorage(bundle, derived.buildTitle, activeSlot, true);
+            const localOk = saveBundleToStorage(bundle, derived.buildTitle, activeSlot);
             const slotLabel = activeSlot.replace('_', ' ').toUpperCase();
-            if (authUser) {
-              setCloudSaving(true);
-              try {
-                await saveSlotToCloud(authUser.uid, activeSlot, bundle, derived.buildTitle);
-                setCloudSlotMap((prev) => ({
-                  ...prev,
-                  [activeSlot]: {
-                    summary: {
-                      slotId: activeSlot,
-                      starterClass: player.starterClass,
-                      level: player.level,
-                      zoneId: currentZoneId,
-                      zoneName: currentZone.name,
-                      buildTitle: derived.buildTitle,
-                      kills: player.kills,
-                      gold: player.gold,
-                      updatedAtMs: Date.now(),
-                      completedAtMs: completedAtMs ?? undefined,
-                      ngPlusCycle,
-                      hardcore,
-                      deadAtMs: deathStampRef.current?.deadAtMs,
-                      deathNote: deathStampRef.current?.deathNote,
-                    },
-                    payload: bundle,
-                  },
-                }));
-                pushLog(
-                  localOk
-                    ? `Saved ${slotLabel} to Cloud & Local storage.`
-                    : `Saved ${slotLabel} to Cloud (local browser storage quota exceeded).`,
-                  localOk ? 'quest' : 'danger'
-                );
-              } catch (err) {
-                const msg = formatCloudError(err);
-                pushLog(
-                  localOk
-                    ? `Saved ${slotLabel} locally; cloud sync failed: ${msg}`
-                    : `Save failed: local quota exceeded & cloud sync failed (${msg}).`,
-                  'danger'
-                );
-              } finally {
-                setCloudSaving(false);
-              }
-            } else if (localOk) {
+            if (localOk) {
               pushLog(`Saved ${slotLabel} locally.`, 'quest');
             }
             setGameState('PLAYING');
@@ -6779,8 +6440,6 @@ export default function App() {
       {showHallOfFame && (
         <HallOfFameModal
           entries={mergedChronicles}
-          isSignedIn={Boolean(authUser)}
-          lifetime={lifetime}
           onClose={() => setShowHallOfFame(false)}
         />
       )}

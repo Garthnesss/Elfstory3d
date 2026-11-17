@@ -198,7 +198,7 @@ export const NPCS: Record<string, NpcDef> = {
     nodes: {
       root: {
         id: 'root',
-        text: 'Sparks drift from Torin’s anvil as he sets down a heavy hammer. "Fresh steel or a sturdy helm—whatever you haul up from the Reliquary, my forge can temper it into something worthy of the lower vaults."',
+        text: 'Sparks drift from Torin’s anvil as he sets down a heavy hammer. "Elfstrom. You’re back, and still carrying that sword like it owes you money. Whatever you haul up from the Reliquary, my forge can temper it into something worthy of the lower vaults. Can’t do anything about the rest of you."',
         choices: [
           {
             id: 'trade',
@@ -207,14 +207,14 @@ export const NPCS: Record<string, NpcDef> = {
           },
           {
             id: 'ask_craft',
-            label: '[Might 3] Inspect his masterwork anvil techniques.',
+            label: '[Might 3] “Show me the anvil secrets. I’ll pretend I already knew them.”',
             check: { attribute: 'might', threshold: 3 },
             nextNodeId: 'craft_pass',
             failNodeId: 'craft_fail',
           },
           {
             id: 'leave',
-            label: 'Step back from the forge.',
+            label: '“I’ll let you get back to it. You’re welcome for the visit.”',
             action: { type: 'close_dialogue' },
           },
         ],
@@ -260,7 +260,7 @@ export const NPCS: Record<string, NpcDef> = {
     nodes: {
       root: {
         id: 'root',
-        text: 'Glass phials chime gently along Mira’s shelves. "The Reliquary air carries a creeping chill lately. Need draughts brewed, wounds dressed, or word on the blight below?"',
+        text: 'Glass phials chime gently along Mira’s shelves. "Oh, it’s you, dear. Sit, sit — no, not on the mandrake. The Reliquary air carries a creeping chill lately. Need draughts brewed, wounds dressed, or word on the blight below? Or just someone to tell your story to? Again?"',
         choices: [
           {
             id: 'buy_potions',
@@ -396,29 +396,29 @@ export const NPCS: Record<string, NpcDef> = {
     nodes: {
       root: {
         id: 'root',
-        text: 'Captain Vance studies a weathered map pinned with brass tacks. "Someone has been smuggling sealed relics up from Floor 1 while my patrols are stretched thin. Speak plainly—what brings you to the gate?"',
+        text: 'Captain Vance studies a weathered map pinned with brass tacks. "Someone has been smuggling sealed relics up from Floor 1 while my patrols are stretched thin. And now the realm has sent me… you." He looks you up and down. "Speak plainly — and briefly. What brings you to the gate?"',
         choices: [
           {
             id: 'start_shadows',
-            label: 'Offer to track down the smuggler cache on Floor 1.',
+            label: '“Smugglers? Say no more. I’ll find your cache on Floor 1.”',
             condition: { questId: 'shadows_beneath', questStatus: undefined },
             nextNodeId: 'shadows_offer',
           },
           {
             id: 'turn_in_ledger',
-            label: 'Hand over the Sealed Contraband Ledger.',
+            label: '“One Sealed Contraband Ledger. You’re welcome. Applause optional.”',
             condition: { questId: 'shadows_beneath', questStatus: 'active', hasItemTag: 'smuggler_ledger' },
             nextNodeId: 'ledger_vance',
           },
           {
             id: 'citadel_ask',
-            label: 'Ask about passage to Highspire Citadel.',
+            label: '“Highspire. Big castle. How do I get in? Asking for a hero.”',
             condition: { flag: 'citadelAccess', flagEquals: false },
             nextNodeId: 'citadel_info',
           },
           {
             id: 'persuade_gate',
-            label: '[Resolve 3] Demand a Citadel Seal now—Oakhaven needs reinforcements.',
+            label: '[Resolve 3] “Give me a Citadel Seal. Oakhaven needs reinforcements, and Highspire needs me.”',
             condition: { flag: 'citadelAccess', flagEquals: false },
             check: { attribute: 'resolve', threshold: 3 },
             nextNodeId: 'citadel_unlocked_early',
@@ -430,11 +430,6 @@ export const NPCS: Record<string, NpcDef> = {
             check: { attribute: 'agility', threshold: 2 },
             nextNodeId: 'outrider_vance_pass',
             failNodeId: 'outrider_vance_fail',
-          },
-          {
-            id: 'vance_upgrades',
-            label: '[Town Upgrades] Fund Outpost & Citadel Improvements',
-            action: { type: 'open_upgrades' },
           },
           {
             id: 'vance_companion',
@@ -546,7 +541,7 @@ export const NPCS: Record<string, NpcDef> = {
     nodes: {
       root: {
         id: 'root',
-        text: 'Vex leans out of the alley shade, flipping a tarnished silver coin across her knuckles. "Vance marches in circles while real treasure rots below. Looking to trade rare curios—or make an arrangement?"',
+        text: 'Vex leans out of the alley shade, flipping a tarnished silver coin across her knuckles. "Psst. Over here. No — quieter. Quieter than that. Do you know what quiet is?" She sighs. "Vance marches in circles while real treasure rots below. Looking to trade rare curios — or make an arrangement?"',
         choices: [
           {
             id: 'black_market',
@@ -663,7 +658,7 @@ export const NPCS: Record<string, NpcDef> = {
     nodes: {
       root: {
         id: 'root',
-        text: 'Floating chalk runes orbit Lyra’s lectern. "Welcome to Highspire’s Archive. The lower Ember Vaults are waking—and the Whispering Bell on Floor 3 is ringing again."',
+        text: 'Floating chalk runes orbit Lyra’s lectern. "Welcome to Highspire’s Archive. Please do not lick the scrolls; the last hero did." She checks a list. "The Ember Vaults are waking, and the Whispering Bell on Floor 3 is ringing again. The prophecy mentions a hero. It does not mention a nickname."',
         choices: [
           {
             id: 'start_bell',
@@ -839,7 +834,7 @@ export const NPCS: Record<string, NpcDef> = {
     nodes: {
       root: {
         id: 'root',
-        text: 'Magistrate Corvus adjusts his gold-trimmed mantle. "Highspire pays for results, not dusty superstitions. If you find the Whispering Bell on Floor 3, bring it straight to my vault—not Lyra’s lectern."',
+        text: 'Magistrate Corvus adjusts his gold-trimmed mantle. "Name? …I’m not writing that down." He writes something shorter. "Highspire pays for results, not dusty superstitions. If you find the Whispering Bell on Floor 3, bring it straight to my vault — not Lyra’s lectern. There will be a form."',
         choices: [
           {
             id: 'sell_bell',
@@ -923,7 +918,7 @@ export const NPCS: Record<string, NpcDef> = {
     nodes: {
       root: {
         id: 'root',
-        text: 'Guildmaster Kaelen cleans soot from a notched claymore. "Below these stones lies the Ember Vaults, and beneath them, the Obsidian Sanctum. Only one name remains to settle: Malakor, Sovereign of Cinder."',
+        text: 'Guildmaster Kaelen cleans soot from a notched claymore. "Below these stones lie the Ember Vaults, and beneath them, the Obsidian Sanctum. Only one name remains to settle: Malakor, Sovereign of Cinder." He pauses. "Two names, if we count yours. The Guild has been arguing about yours for a week."',
         choices: [
           {
             id: 'accept_final',
@@ -937,11 +932,6 @@ export const NPCS: Record<string, NpcDef> = {
             condition: { minGold: 40 },
             action: { type: 'respec_skills', cost: 40 },
             nextNodeId: 'respec_done',
-          },
-          {
-            id: 'kaelen_upgrades',
-            label: '[Town Upgrades] Review Citadel & Outpost Improvements',
-            action: { type: 'open_upgrades' },
           },
           {
             id: 'kaelen_companion',
@@ -1038,7 +1028,7 @@ export const NPCS: Record<string, NpcDef> = {
     nodes: {
       root: {
         id: 'root',
-        text: 'Rowan banks the Silverbridge campfire and nods toward the eastern woods. "Welcome to Silverwood Vale, outrider. North leads to Whispering Barrow and Cinderwatch Bastion; southeast lies Thornwick Fen."',
+        text: 'Rowan banks the Silverbridge campfire and nods toward the eastern woods. "Welcome to Silverwood Vale, outrider. I’ve heard about you." Pause. "From you. In the distance. You were yelling it. North leads to Whispering Barrow and Cinderwatch Bastion; southeast lies Thornwick Fen."',
         choices: [
           {
             id: 'ask_roads',
@@ -1535,7 +1525,7 @@ export const NPCS: Record<string, NpcDef> = {
     nodes: {
       root: {
         id: 'root',
-        text: 'Sister Wren tends a row of shrine candles that never quite go out. "Blessings are free, delver. Candles cost a copper. The Outpost runs on priorities." She glances at the Old Oak. "It was old when the Outpost was young. Leave it a kind word when you pass."',
+        text: 'Sister Wren tends a row of shrine candles that never quite go out. "Blessings are free, delver. Candles cost a copper. Ego is extra." She eyes you. "I’ll light one for you anyway. A big one. I hear that’s how you like things." She glances at the Old Oak. "It was old when the Outpost was young. Leave it a kind word when you pass."',
         choices: [{ id: 'leave', label: 'Bow and go.', action: { type: 'close_dialogue' } }],
       },
     },

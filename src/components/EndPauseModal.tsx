@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-import { User } from 'firebase/auth';
 import { DerivedStats, GameState, PlayerState, SaveSlotId } from '../game/types';
 
 interface EndPauseModalProps {
@@ -14,9 +13,6 @@ interface EndPauseModalProps {
   ngPlusCycle?: number;
   /** Phase 5: whether this run is hardcore (permadeath). */
   hardcore?: boolean;
-  authUser: User | null;
-  cloudBusy: boolean;
-  onSignIn: () => void;
   onResume: () => void;
   onSaveRun: () => void;
   onOpenHallOfFame: () => void;
@@ -49,9 +45,6 @@ export const EndPauseModal: React.FC<EndPauseModalProps> = ({
   difficultyLabel,
   ngPlusCycle = 0,
   hardcore = false,
-  authUser,
-  cloudBusy,
-  onSignIn,
   onResume,
   onSaveRun,
   onOpenHallOfFame,
@@ -67,7 +60,7 @@ export const EndPauseModal: React.FC<EndPauseModalProps> = ({
     mode === 'VICTORY'
       ? 'Sovereign Vanquished'
       : mode === 'GAME_OVER'
-        ? 'Fallen in the Vaults'
+        ? 'Garth Has Fallen (Over)'
         : 'Expedition Paused';
 
   const subtitle =
@@ -75,11 +68,9 @@ export const EndPauseModal: React.FC<EndPauseModalProps> = ({
       ? 'Malakor’s cinder crown has shattered. You may descend Floor 5’s Abyssal Stair into the Endless Abyss—or start a fresh build.'
       : mode === 'GAME_OVER'
         ? hardcore
-          ? 'Your lantern fades among the cold stones — and in Hardcore, it does not rekindle. This run is etched into the Chronicle as fallen, forever.'
-          : 'Your lantern fades among the cold stones, though every delve teaches a sharper build.'
-        : authUser
-          ? `Saving to ${SLOT_LABEL[activeSlot]} in Cloud (${authUser.displayName ?? 'Google'}) & browser.`
-          : `Saving locally to ${SLOT_LABEL[activeSlot]}. Sign in with Google to sync runs to the cloud.`;
+          ? 'Your lantern fades among the cold stones — and in Hardcore, it does not rekindle. The Chronicle records your fall forever. Torin has already sold your boots.'
+          : 'Your lantern fades among the cold stones. Oakhaven will drag you back, patch you up, and charge you for it. Every delve teaches a sharper build — or at least a humbler one.'
+        : `Saving locally to ${SLOT_LABEL[activeSlot]} in this browser.`;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -163,15 +154,10 @@ export const EndPauseModal: React.FC<EndPauseModalProps> = ({
               </button>
               <button
                 type="button"
-                disabled={cloudBusy}
                 onClick={onSaveRun}
                 className="min-h-[44px] w-full py-2.5 rounded border border-white/15 bg-[#161B26] hover:border-amber-400/50 text-[#ECE4D4] font-medium text-sm cursor-pointer"
               >
-                {cloudBusy
-                  ? 'Saving...'
-                  : authUser
-                    ? `Save ${SLOT_LABEL[activeSlot]} (Cloud & Local)`
-                    : `Save ${SLOT_LABEL[activeSlot]} Locally`}
+                {`Save ${SLOT_LABEL[activeSlot]}`}
               </button>
               {canReturnToEnding && onReturnToEnding && (
                 <button
@@ -180,16 +166,6 @@ export const EndPauseModal: React.FC<EndPauseModalProps> = ({
                   className="min-h-[44px] w-full py-2.5 rounded border border-amber-400/50 bg-amber-500/15 hover:bg-amber-500/25 text-amber-200 font-semibold text-sm cursor-pointer"
                 >
                   ✦ Return to the Ending
-                </button>
-              )}
-              {!authUser && (
-                <button
-                  type="button"
-                  disabled={cloudBusy}
-                  onClick={onSignIn}
-                  className="min-h-[44px] w-full py-2.5 rounded border border-sky-400/40 bg-[#111A29] hover:bg-[#18253A] text-sky-100 font-medium text-sm cursor-pointer"
-                >
-                  Sign in with Google for Cloud Saves
                 </button>
               )}
               {onOpenSettings && (

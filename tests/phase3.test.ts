@@ -9,9 +9,8 @@ import {
   stepCritters,
   stepNpcWander,
 } from '../src/game/ambient';
-import { BESTIARY_DEFS } from '../src/game/codex';
 import { chooseEnemyIntent } from '../src/game/combat';
-import { packZones, unpackZones } from '../src/game/cloudSave';
+import { packZones, unpackZones } from '../src/game/zonePacking';
 import {
   RELIC_SETS,
   createNamedRelic,
@@ -113,9 +112,6 @@ function makeFlags(overrides: Partial<WorldFlags> = {}): WorldFlags {
     readLoreIds: [],
     confrontedBosses: [],
     waystonesAttuned: 0,
-    bestiaryKills: {},
-    unlockedFeats: [],
-    townUpgrades: { apothecary: 0, smithy: 0, watchtower: 0 },
     ...overrides,
   };
 }
@@ -181,13 +177,9 @@ const NEW_ARCHS: EnemyArchetype[] = ['grave_husk', 'spore_hulk', 'rime_revenant'
 
 // ------------------------------------------------------- new archetypes
 
-test('Phase 3 archetypes: createEnemy stats follow P1 conventions and match the bestiary', () => {
+test('Phase 3 archetypes: createEnemy stats follow P1 conventions ', () => {
   for (const arch of NEW_ARCHS) {
     const e = createEnemy(arch, 0, 0, 3);
-    const def = BESTIARY_DEFS[arch];
-    assert.ok(def, `${arch} needs a bestiary entry`);
-    assert.equal(e.glyph, def.glyph, `${arch} glyph must match bestiary`);
-    assert.equal(e.color, def.color, `${arch} color must match bestiary`);
     assert.ok(e.hp > 0 && e.atk > 0 && e.xpReward > 0);
     const deeper = createEnemy(arch, 0, 0, 6);
     assert.ok(deeper.hp > e.hp, `${arch} HP must scale with depth`);
@@ -195,8 +187,6 @@ test('Phase 3 archetypes: createEnemy stats follow P1 conventions and match the 
   }
   assert.equal(createEnemy('spore_hulk', 0, 0, 3).isElite, true);
   assert.equal(createEnemy('rime_revenant', 0, 0, 4).isElite, true);
-  // Bestiary now covers all 17 archetypes.
-  assert.equal(Object.keys(BESTIARY_DEFS).length, 17);
 });
 
 test('Phase 3 archetypes: distinct telegraphed identities via chooseEnemyIntent', () => {

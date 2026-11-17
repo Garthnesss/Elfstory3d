@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { User } from 'firebase/auth';
 import { ScrollText, SlidersHorizontal, Trash2, Trophy } from 'lucide-react';
-import { CloudSaveSummary, SAVE_SLOTS } from '../game/cloudSave';
+import { SAVE_SLOTS } from '../game/zonePacking';
 import { DIFFICULTY_INFO, DIFFICULTY_ORDER, DifficultyTier } from '../game/difficulty';
 import { SlotIssue } from '../game/saveSlots';
 import { PlayerState, SaveSlotId } from '../game/types';
@@ -34,17 +33,11 @@ interface TitleScreenProps {
   activeSlot: SaveSlotId;
   onSelectSlot: (slotId: SaveSlotId) => void;
   localSlots: Partial<Record<SaveSlotId, LocalSlotSummary>>;
-  cloudSlots: Partial<Record<SaveSlotId, CloudSaveSummary>>;
   /** Phase 4: slots whose local save exists but cannot be loaded
    *  (corrupt JSON or a newer save format). Rendered in place of a
    *  summary; the slot's delete action still works. */
   slotIssues?: Partial<Record<SaveSlotId, SlotIssue>>;
   chronicleCount: number;
-  authUser: User | null;
-  authBusy: boolean;
-  authError: string | null;
-  onSignIn: () => void;
-  onSignOut: () => void;
   onStartNew: (
     starterClass: PlayerState['starterClass'],
     slotId: SaveSlotId,
@@ -52,7 +45,6 @@ interface TitleScreenProps {
     hardcore: boolean
   ) => void;
   onContinueLocal: (slotId: SaveSlotId) => void;
-  onContinueCloud: (slotId: SaveSlotId) => void;
   onDeleteSlot: (slotId: SaveSlotId) => void;
   onOpenHallOfFame: () => void;
   onOpenSettings: () => void;
@@ -76,7 +68,7 @@ const STARTER_CLASSES: Array<{
     glyph: '⚔',
     focus: 'Sundering Cleave & Iron Guard',
     stats: 'Might 3 · Resolve 2 · Agility 1 · Arcana 1 · Starts with Shielding Rune',
-    lore: 'Once a bridge-warden of the Silverglades, Garth answers cinder-giants with broadsteel and unyielding poise.',
+    lore: 'Once a bridge-warden of the Silverglades (it was a small bridge; he describes it as large), Garth answers cinder-giants with broadsteel and unearned confidence.',
   },
   {
     id: 'Shadowcraft',
@@ -84,7 +76,7 @@ const STARTER_CLASSES: Array<{
     glyph: '◈',
     focus: 'Shadowstep Ambush & Precision Crit',
     stats: 'Agility 3 · Resolve 2 · Might 1 · Arcana 1 · Starts with Phase Door Rune',
-    lore: 'Trained among elven night-scouts, Garth slips through shadow seams and spots hidden traps long before they spring.',
+    lore: 'Trained among elven night-scouts, who asked him to leave for being too loud, Garth spots hidden traps long before he steps in them anyway.',
   },
   {
     id: 'Runecaster',
@@ -92,7 +84,7 @@ const STARTER_CLASSES: Array<{
     glyph: '🜂',
     focus: 'Ember Lance & Arcane Mastery',
     stats: 'Arcana 3 · Resolve 2 · Might 1 · Agility 1 · Starts with Shielding + Phase Runes',
-    lore: 'An exiled scholar of the Ashen Glyph, Garth bends ancient sigils into piercing fire and frost wards.',
+    lore: 'An exiled scholar of the Ashen Glyph (exiled for setting the library on fire, twice), Garth bends ancient sigils into fire. Mostly on purpose.',
   },
   {
     id: 'Wanderer',
@@ -114,17 +106,10 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
   activeSlot,
   onSelectSlot,
   localSlots,
-  cloudSlots,
   slotIssues,
   chronicleCount,
-  authUser,
-  authBusy,
-  authError,
-  onSignIn,
-  onSignOut,
   onStartNew,
   onContinueLocal,
-  onContinueCloud,
   onDeleteSlot,
   onOpenHallOfFame,
   onOpenSettings,
@@ -137,10 +122,8 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
   const [hardcore, setHardcore] = useState(false);
   const [imgError, setImgError] = useState(false);
 
-  const selectedCloud = cloudSlots[activeSlot];
   const selectedLocal = localSlots[activeSlot];
   // Phase 5: a fallen hardcore run can never be loaded again.
-  const selectedCloudFallen = selectedCloud?.deadAtMs != null;
   const selectedLocalFallen = selectedLocal?.deadAtMs != null;
 
   // NOTE: No Enter/Space keyboard shortcut here on purpose. It previously
@@ -169,7 +152,7 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
       <div className="fixed inset-0 bg-gradient-to-t from-[#07090D]/90 via-transparent to-[#07090D]/55 pointer-events-none" />
 
       <div className="relative z-10 min-h-full max-w-6xl mx-auto px-4 sm:px-8 md:px-14 py-5 sm:py-8 flex flex-col justify-between gap-4">
-        {/* Top Row: Realm Crest, Hall of Fame & Optional Google Cloud Account */}
+        {/* Top Row: Realm Crest, Hall of Fame, Settings, Credits */}
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3 text-xs font-mono-glyph text-amber-400/80 tracking-widest">
             <span>◈</span>
@@ -204,30 +187,6 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
               <span>Credits</span>
             </button>
 
-            {authUser ? (
-              <>
-                <span className="text-slate-300 hidden sm:inline">
-                  <span className="text-amber-200 font-medium">{authUser.displayName ?? 'Adventurer'}</span>
-                </span>
-                <button
-                  type="button"
-                  disabled={authBusy}
-                  onClick={onSignOut}
-                  className="min-h-[44px] px-2 text-slate-400 hover:text-white underline underline-offset-4 cursor-pointer"
-                >
-                  Sign out
-                </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                disabled={authBusy}
-                onClick={onSignIn}
-                className="min-h-[44px] px-3.5 py-1.5 rounded border border-white/15 bg-[#11151E]/90 hover:border-amber-400/50 text-[#ECE4D4] font-medium transition-colors cursor-pointer whitespace-nowrap shrink-0"
-              >
-                {authBusy ? 'Connecting...' : 'Sign in with Google'}
-              </button>
-            )}
           </div>
         </div>
 
@@ -269,9 +228,9 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
               </svg>
 
               <p className="text-sm text-[#D6CEBE] leading-relaxed max-w-lg">
-                An elven outrider drawn south by the awakening of the Ashen Glyph, <span className="text-amber-200 font-medium">Garth &ldquo;Big Dick&rdquo; Elfstrom</span> descends
-                beneath Oakhaven Outpost and Highspire Citadel. Read enemy windups, inscribe cooldown Runes &amp; Infusions,
-                claim Skill Capstones, and confront Sovereign Malakor.
+                The Ashen Glyph has woken, the Ember Blight is spreading, and the realm has called for a hero. It got <span className="text-amber-200 font-medium">Garth &ldquo;Big Dick&rdquo; Elfstrom</span>,
+                an elven outrider of tremendous self-belief and modest track record. Descend beneath Oakhaven, read enemy windups, gear up from the deep,
+                and confront Sovereign Malakor — who has heard of Garth, and is not worried.
               </p>
             </div>
 
@@ -372,7 +331,6 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
               </button>
             </div>
 
-            {authError && <div className="text-xs text-rose-300">{authError}</div>}
 
             {/* Primary CTAs */}
             <div className="flex flex-wrap items-center gap-3 pt-1">
@@ -381,20 +339,10 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
                 onClick={() => onStartNew(selectedClass, activeSlot, selectedDifficulty, hardcore)}
                 className="min-h-[44px] px-6 py-2.5 rounded bg-amber-500 hover:bg-amber-400 text-[#0B0D12] font-semibold text-sm transition-colors cursor-pointer whitespace-nowrap shrink-0"
               >
-                {selectedLocal || selectedCloud
+                {selectedLocal
                   ? `New Adventure in ${SLOT_LABELS[activeSlot]}`
                   : `Start Adventure (${SLOT_LABELS[activeSlot]})`}
               </button>
-
-              {selectedCloud && !selectedCloudFallen && (
-                <button
-                  type="button"
-                  onClick={() => onContinueCloud(activeSlot)}
-                  className="min-h-[44px] px-4 py-2.5 rounded border border-sky-400/50 bg-[#111A29]/90 hover:bg-[#18253A] text-sky-100 font-medium text-sm transition-colors cursor-pointer whitespace-nowrap shrink-0"
-                >
-                  Load Cloud ({SLOT_LABELS[activeSlot]})
-                </button>
-              )}
 
               {selectedLocal && !selectedLocalFallen && (
                 <button
@@ -415,24 +363,22 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
                 Expedition Save Slots
               </span>
               <span className="text-[11px] text-slate-400">
-                {authUser ? 'Cloud + Local' : 'Browser Local'}
+                Browser Local
               </span>
             </div>
 
             <div className="space-y-2">
               {SAVE_SLOTS.map((slotId) => {
-                const cloud = cloudSlots[slotId];
                 const local = localSlots[slotId];
-                const primary = cloud ?? local;
+                const primary = local;
                 // Phase 5: fallen hardcore runs render as fallen and lose
                 // their Load buttons (Delete still works).
-                const cloudFallen = cloud?.deadAtMs != null;
                 const localFallen = local?.deadAtMs != null;
                 const primaryFallen = primary?.deadAtMs != null;
                 const isSelected = activeSlot === slotId;
                 // Phase 4: a local save that exists but cannot be loaded
                 // (corrupt / newer format) shows its issue in place of a
-                // summary — unless a loadable local or cloud save exists.
+                // summary — unless a loadable local save exists.
                 const issue = !local ? slotIssues?.[slotId] : undefined;
 
                 return (
@@ -475,18 +421,6 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
                       </div>
 
                       <div className="flex items-center gap-1.5 shrink-0">
-                        {cloud && !cloudFallen && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onContinueCloud(slotId);
-                            }}
-                            className="min-h-[44px] px-3 py-1 rounded text-xs font-medium border border-sky-400/40 bg-sky-500/15 hover:bg-sky-500/25 text-sky-200 cursor-pointer"
-                          >
-                            Cloud
-                          </button>
-                        )}
                         {local && !localFallen && (
                           <button
                             type="button"
@@ -511,7 +445,7 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
                             Load
                           </button>
                         )}
-                        {(local || cloud || issue) && (
+                        {(local || issue) && (
                           <button
                             type="button"
                             aria-label={`Delete ${SLOT_LABELS[slotId]}`}

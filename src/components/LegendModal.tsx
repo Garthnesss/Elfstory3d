@@ -27,8 +27,7 @@ const TILE_ITEMS = [
 
 const STATUS_ITEMS = [
   { name: 'Spirit Companions (Lynx & Owl)', tone: 'text-sky-300', desc: 'Active allies granting passive stats and fighting alongside you. Swap between Lynx and Owl at Vance/Kaelen.' },
-  { name: 'Monster Bestiary & Feats', tone: 'text-amber-300', desc: 'Open Journal [J] -> Bestiary to track kill milestones, Hunter and Slayer ranks, lore and tactics, plus Expedition Feats.' },
-  { name: 'Tempering & Town Upgrades', tone: 'text-emerald-300', desc: 'Visit merchants to Temper gear with Gold. Fund Apothecary, Smithy & Watchtower via Vance or Kaelen.' },
+  { name: 'Tempering', tone: 'text-emerald-300', desc: 'Visit merchants to Temper gear up to +3 with Gold.' },
   { name: 'Floor Mini-Bosses & Rare Foes', tone: 'text-sky-300', desc: 'Named Wardens & Rare elites wielding player skills with pinned Boss Threat bars and Set Relic / Epic drops.' },
   { name: 'Relic Sets', tone: 'text-amber-200', desc: 'Collect matching pieces — Starlight Outrider, Cinderforged Covenant, Thornbound Covenant, or Rimebound Regalia — prized relics with strong stats and a distinctive look.' },
   { name: 'Set-Piece Rooms & Deep Fauna', tone: 'text-lime-300', desc: 'Each dungeon floor hides one hand-built set-piece room (a trapped Sepulcher, the Spore-Heart Chamber, the Rime Circle, or a Brazier-Sealed hall). Side dungeons breed their own foes — Grave Husks cheat death once, Spore Hulks burst when slain, and Rime Revenant bolts Chill.' },
@@ -46,7 +45,7 @@ const CONTROLS = [
   { key: 'Map / - + Zoom', action: 'Toggle phone corner minimap or adjust chase camera distance' },
   { key: '1 – 5 / 6 – 8 / Tab', action: 'Cast Active Skills / Runes / Cycle Aimed Target' },
   { key: 'Z / R / Q / .', action: 'Auto-Explore / Safe Rest / Quick Draught / Wait 1 turn' },
-  { key: 'K / I / J / M', action: 'Open Skills & Prodigies, Pack, Journal & Bestiary, or Waypoints' },
+  { key: 'K / I / J / M', action: 'Open Skills, Pack, Journal, or Waypoints' },
   { key: 'Enter / Space / Esc', action: 'Accept dialogue/prompts or close/cancel targeting & open Menu' },
 ];
 

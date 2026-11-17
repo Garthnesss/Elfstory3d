@@ -1,7 +1,7 @@
 # ElfStory — Architecture
 
 ## Big picture
-A single-page React app. All game logic lives in pure-ish TypeScript modules under `src/game/`; `src/App.tsx` is the game loop and state owner (~6,800 lines, one component holding 152 hooks); `src/components/` are presentational modals/HUD/canvas driven entirely by App state. There is no server of ours — persistence is localStorage plus optional Firebase (Auth + Firestore) cloud saves.
+A single-page React app. All game logic lives in pure-ish TypeScript modules under `src/game/`; `src/App.tsx` is the game loop and state owner (~6,800 lines, one component holding 152 hooks); `src/components/` are presentational modals/HUD/canvas driven entirely by App state. There is no server and no network dependency — persistence is localStorage only (Firebase cloud saves were removed Nov 17, 2026).
 
 ```
 TitleScreen ──► App.tsx (turn loop, state, saves) ──► PerspectiveCanvas (full 3D render)
@@ -10,7 +10,6 @@ TitleScreen ──► App.tsx (turn loop, state, saves) ──► PerspectiveCan
                      │  ├─ src/game/skills.ts   — attributes, trees, derived stats
                      │  ├─ src/game/loot.ts     — gear generation, relics, runeforge
                      │  ├─ src/game/npcs.ts     — dialogue trees, quest defs
-                     │  ├─ src/game/codex.ts    — bestiary, feats, town upgrades
                      │  ├─ src/game/audio.ts    — Web Audio SFX + generative music
                      │  ├─ src/game/ambient.ts  — zone life: townsfolk, barks, critters
                      │  ├─ src/game/quests.ts   — quest "Next:" guidance derivation
@@ -20,9 +19,9 @@ TitleScreen ──► App.tsx (turn loop, state, saves) ──► PerspectiveCan
                      │  ├─ src/game/tutorial.ts — first-run tutorial steps
                      │  ├─ src/game/coachMarks.ts— one-time contextual hints
                      │  ├─ src/game/gamepad.ts  — gamepad polling/mapping
-                     │  ├─ src/game/lifetime.ts — per-device lifetime stats
                      │  ├─ src/game/runRules.ts — pure run rules (save pruning, ending gate)
-                     │  └─ src/game/cloudSave.ts— RLE zone packing, Firestore I/O
+                     │  ├─ src/game/garthVoice.ts — Garth's log quips (comedy tone)
+                     │  └─ src/game/zonePacking.ts — RLE zone packing for local saves
                      └─ src/components/*.tsx    — modals, HUD, dock, canvas
 ```
 
@@ -33,8 +32,8 @@ TitleScreen ──► App.tsx (turn loop, state, saves) ──► PerspectiveCan
 - **`src/game/skills.ts`** — attribute model, 3 skill trees, Prodigies, `computeDerivedStats` (the single source of derived player stats), `computeRespecPoints`.
 - **`src/game/loot.ts`** — procedural item generation, starter/quest/named items, relic sets, rune enchants (`enchantEquipmentItem`), tempering (`upgradeEquipmentItem`), reroll, salvage.
 - **`src/game/npcs.ts`** — all branching dialogue trees and `QUEST_DEFS`. Dialogue choices carry `condition` (flag/quest/item checks) and `action`/`extraActions` executed by App.
-- **`src/game/codex.ts`** — bestiary definitions + Hunter/Slayer perks, 10 feat definitions, town upgrade definitions.
-- **`src/game/cloudSave.ts`** — Firebase Auth (popup + redirect fallback), save packing: RLE + bitmask tile rows (`packZones`/`unpackZones`, backward-compatible with legacy rows), 940,000-byte cloud cap (`MAX_CLOUD_SAVE_BYTES`), structured error formatting.
+- **`src/game/zonePacking.ts`** — `SAVE_SLOTS` and the RLE + bitmask tile-row packing (`packZones` / `unpackZones`, backward-compatible with legacy rows) used by local saves.
+- **`src/game/garthVoice.ts`** — Garth's quip pools and rate limiting (`shouldQuip`, `pickGarthLine`); one watcher effect in App logs a line on kills, bosses, level-ups, low HP, new depths, big loot and homecomings.
 - **`src/game/audio.ts`** — `SoundEngine`: synthesized one-shot SFX plus a fully procedural generative music engine (pad chords + pentatonic melody; town/dungeon/boss themes chosen by `resolveMusicTheme`, crossfaded, gesture-gated).
 - **`src/game/ambient.ts`** — zone life: roaming townsfolk, NPC bark lines, critter definitions, points of interest, per-biome dungeon ambience lines.
 - **`src/game/quests.ts`** — stage-aware quest guidance ("Next:") derived once and shared by the Journal and the HUD `QuestTracker`.
@@ -45,12 +44,11 @@ TitleScreen ──► App.tsx (turn loop, state, saves) ──► PerspectiveCan
 - **`src/game/coachMarks.ts`** — one-time-per-device contextual hints, claimed at the real event point. Only the first-telegraph mark remains; the inscription and Prodigy marks went with those systems on Nov 15, 2026.
 - **`src/game/gamepad.ts`** — pure gamepad polling/mapping (standard layout, deadzone, hold-repeat), unit-tested; App feeds it into the same dispatch as the keyboard.
 - **`src/game/runRules.ts`** — pure, behaviour-tested run rules that App applies but does not own: `pruneAbyssZones` (called in the one save funnel, `saveBundleToStorage`) and `canOfferReturnToEnding` (the pause-menu gate). New rules of this kind belong here, not inline in App.
-- **`src/game/lifetime.ts`** — per-device lifetime stats record (`elfstory-lifetime`, outside save bundles): expeditions, victories, deaths, kills, deepest floor, highest cycle.
 - **`src/components/`** — `PerspectiveCanvas` (Three.js full-3D renderer: overhead tactical / chase views + touch), `ActionDock`, `TopHud`, and modals/screens (Inventory, Merchant, Dialogue, QuestJournal, CharacterSkills, TownUpgrades, Travel, Legend, HallOfFame, EndPause, SpecialEncounter, TitleScreen, SettingsModal, EndingScreen, CreditsScreen, QuestTracker, TutorialOverlay).
 
 ## Data flow / protocols
 - **Turn loop:** player action in App → player resolution (combat.ts math) → companion turn → enemy turns (intent selection in combat.ts, execution in App) → DoT/status ticks → autosave checks.
-- **Saves:** `SavedBundle` (player, zones, currentZoneId, worldFlags, quests, merchantStocks, logs) → local: JSON with zones packed via `packZones`, under per-slot localStorage keys; cloud: Firestore doc via cloudSave, same packing, hard size cap. Every bundle is stamped with `SAVE_VERSION` (= 1, `src/game/saveSlots.ts`): a missing version hydrates as legacy, a newer version is refused gracefully, and reads are per-slot isolated so one corrupt slot never breaks the others.
+- **Saves:** `SavedBundle` (player, zones, currentZoneId, worldFlags, quests, merchantStocks, logs) → local: JSON with zones packed via `packZones`, under per-slot localStorage keys; stored Abyss floors are pruned at the save funnel (`pruneAbyssZones`). Every bundle is stamped with `SAVE_VERSION` (= 1, `src/game/saveSlots.ts`): a missing version hydrates as legacy, a newer version is refused gracefully, and reads are per-slot isolated so one corrupt slot never breaks the others.
 - **Dialogue:** component renders the node for `activeDialogue`; choice visibility is evaluated from `condition` against player + worldFlags + quests; App executes `action` + `extraActions` atomically on selection.
 
 ## Renderer & performance
@@ -61,10 +59,8 @@ TitleScreen ──► App.tsx (turn loop, state, saves) ──► PerspectiveCan
 - **HUD overlay:** a 2D canvas over the WebGL canvas draws HP bars, rank / intent badges, NPC nameplates and the red threat chevron for every foe in line of sight.
 
 ## Dependencies
-- React 19, Vite 8 (rolldown), Tailwind CSS v4, TypeScript 7 — install needs `--legacy-peer-deps` on clean npm (peer conflict via `@firebase/eslint-plugin-security-rules` → `@typescript-eslint/parser` vs typescript ^7; see HANDOFF.md).
-- Firebase 13 (Auth + Firestore) — optional at runtime; `firebase-applet-config.json` configures it. Firestore rules in `firestore.rules`, spec in `security_spec.md`.
-- Node ≥24 recommended (Firebase declares `engines.node >= 24.12.0`).
-- Portraits/backdrop are local JPEGs in `src/assets/images/` (~672 KB total) — no external assets at runtime beyond Google Fonts/Firebase.
+- React 19, Vite 8 (rolldown), Tailwind CSS v4, TypeScript 7, three.js — plain `npm install` works (the peer conflict left with Firebase's eslint plugin).
+- Portraits/backdrop are local JPEGs in `src/assets/images/` (~672 KB total) — no external assets at runtime beyond Google Fonts.
 
 ## What's missing
 - **No `package-lock.json` in the original handoff** — one was generated during the P0 fix pass (Nov 14, 2026, `npm install --legacy-peer-deps`) and ships with the fixed tree; commit it so installs stay reproducible.
@@ -72,6 +68,5 @@ TitleScreen ──► App.tsx (turn loop, state, saves) ──► PerspectiveCan
 - **ErrorBoundary shipped** — `src/main.tsx` defines an `ErrorBoundary` wrapping `<App/>` since the P0 pass; a render crash shows a recoverable screen instead of a white page.
 - **App.tsx is the structural debt.** ~6,800 lines and 152 hooks in one component: turn loop, AI execution, save/load and every handler. Logic inside it cannot be unit-tested, which is why the Phase 7 tests assert on source strings. The way out is incremental: move decisions into pure `src/game/` modules (as `runRules.ts`, `quests.ts`, `difficulty.ts` already do) and test them there.
 - **No seeded randomness.** Generation and loot call `Math.random` directly (36 calls in `world.ts`, 7 in `loot.ts`, 23 in `App.tsx`), so a floor cannot be reproduced from a seed; tests swap `Math.random` globally to get determinism.
-- **One 1.85 MB JS chunk (531 kB gzip)** carrying three.js and Firebase; Firebase loads even for players who never sign in.
+- **One 1.26 MB JS chunk (353 kB gzip)**, mostly three.js (was 1.85 MB with Firebase, before the Nov 17 cut).
 - **No README** in the handoff (this doc set adds one linking the canonical docs).
-- **Firestore rules are unproven live** — emulator assertions need a Java-enabled environment, which the handoff environment lacked (disclosed in HANDOFF.md).

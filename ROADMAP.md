@@ -87,19 +87,35 @@ From the Nov 16 audit, partial playtest and fix pass (evidence in STATUS.md). Or
 - ✅ Escape closes the expanded chronicle before the pause menu.
 - ✅ Renderer trims: frozen static matrices, no ceilings in Top view, no wall-cap shadows (saving unmeasured).
 
+**Done Nov 16, round 2 (116/116 tests):**
+- ✅ Stairs down sealed while a story boss lives (Vaelen and Serath could be walked past).
+- ✅ Auto-Explore stops beside the stairs instead of descending; names a quest objective left on the floor.
+- ✅ Auto-Explore no longer sticks at a vault door.
+
+**Open — difficulty scaling (Garth is gauging this now; highest-leverage item):**
+- **0. Tune the loot curve before touching enemy stats.** *(a), (b) and a lighter (c) shipped Nov 16 — depth term ×5 capped, Relics premium-only, ordinary drop chance 42% → 30%; see STATUS. Still open: (d) and the played gate below.)* **Round 3 result:** a bump-only Lv 3 hero on the new curve died to Vaelen after 25 rounds (boss at 131/620). Next-step options: keep it (skills, potions and shopping now matter), trim story-boss HP ~20%, or loosen the depth term to ×6–7 — pick after one hand-played run with skills. Gear, not level, sets the power curve: equipping a Floor 1–3 pack doubled ATK at Lv 4 (21 → 45). `rollRarity` gives Epic+ on 31% of Floor 3 drops and 76% at Abyss depth 8, and Relics are ×2.7 power. Options, in order of size: (a) slow the depth term (`depth × 9` → `× 4–5`) so Epics arrive around Floor 4 and Relics stay rare; (b) gate Relic rarity to bosses, vaults and set pieces; (c) fewer gear drops per floor (20 pieces by Lv 4) so each find matters; (d) only then re-run `tools/difficulty_sim.py` with an *equipped* hero model — the sim currently assumes level-based stats. Gate: a played Floor 1–5 run where the boss fights land in the 8–12 round band both with and without careful gearing.
+
+**Story — comedy tone (Garth picked pitch B, Nov 17, 2026):** the realm called for a hero and got Garth. First tranche done (barks, title, class bios, NPC openers, story-boss intros, ending, death screen — see STATUS). Next tranches, in order: (1) Garth's own voice — short replies in dialogue choices and log lines on kills, level-ups and deaths; (2) quest summaries and journal hints; (3) remaining dialogue nodes and lore steles; (4) side bosses and zone banners. Gate per tranche: Garth reads it in-game and laughs at least once.
+
+**✅ Cut plan A — Lean core — DONE Nov 17, 2026:** cloud saves/Firebase, town upgrades, feats, bestiary and lifetime stats removed (see STATUS). Next on this track: performance (items 1–5), then the App.tsx split.
+
+**Common-mistakes check (Nov 17, 2026 — answered in chat; Garth: "we might have feature overload, we can always remove stuff"):** guilty of feature creep, sim-only balancing, power inflation, untested target devices, one giant component, a weak hook (being fixed), noisy UI, and a stale live build. Proposed fix order: a cut pass first (pitches in chat), then performance, then the App.tsx split.
+
 **Open — performance (the game's weakest point next to its peers, which are 2D and run anywhere):**
 1. **Batch the terrain.** Replace per-tile meshes with `InstancedMesh` (or merged chunks) per material and visibility state. Target: Oakhaven under 150 draw calls from ~1,500. Gate: before/after draw-call and frame-time numbers on a real phone.
 2. **Measure on a phone.** Nothing in this project has been profiled off the development Mac. Do this before item 1 to set the target.
 3. **Idle the frame loop** when nothing animates and a modal covers the map; cap to 30 fps on battery / reduced-motion.
 4. **Kill the zone-entry hitch** (1,150 ms first build): pre-warm textures and shaders behind the title screen or a short fade.
-5. **Split the bundle:** load Firebase only on sign-in; split three.js into its own cached chunk. Now 1,853 kB / 531 kB gzip in one file.
+5. **Split the bundle:** split three.js into its own cached chunk. Now 1,255 kB / 353 kB gzip in one file (Firebase already removed).
 
 **Open — play feel (from the playtest):**
 6. **Narrow-screen overlaps:** Look / Map buttons cover the quest tracker; the tutorial card covers the hero and the D-pad.
 7. **Full zone map on desktop** (`M` currently opens fast travel; only touch has a Map button).
 8. **Attack-nearest / auto-fight key** — the genre's standard answer to repeated bump attacks.
 9. **Loot origin text:** items name the depth they were rolled at, so a Floor 1 mini-boss drop reads "recovered from the Frost-Bound Ossuary". Name the place it was found, or drop the claim.
-10. **Floor 1 gatekeeper check:** Skrag (74 HP) fell to four basic attacks at Lv 1. One observation — re-run `tools/difficulty_sim.py` for mini-bosses before changing anything.
+10. **Floor 1 gatekeeper / early floors are soft.** Skrag (74 HP) fell to four basic attacks at Lv 1, and Floors 1–2 never pushed the hero below two-thirds HP. Likely a symptom of item 0 (an early Rare drop), not enemy stats — fix item 0 first.
+13. **Companion survivability:** the Lynx (24 HP) dies to a single Floor 1 goblin; it scales with level, but it is gone before level matters.
+14. **Gold sink:** 959 gold by Floor 3 with little to buy.
 
 **Open — structure:**
 11. **Seeded runs.** Thread one seeded PRNG through `world.ts` / `loot.ts` instead of `Math.random`. Unlocks reproducible bug reports, deterministic tests without global swaps, shareable seeds and a daily run.

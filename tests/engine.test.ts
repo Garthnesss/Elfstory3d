@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { packZones, unpackZones } from '../src/game/cloudSave';
-import { BESTIARY_DEFS, computeBestiaryRanks, FEAT_DEFS } from '../src/game/codex';
+import { packZones, unpackZones } from '../src/game/zonePacking';
 import {
   calculatePlayerHit,
   findPathNextStep,
@@ -68,9 +67,6 @@ function makeTestFlags(overrides: Partial<WorldFlags> = {}): WorldFlags {
     readLoreIds: [],
     confrontedBosses: [],
     waystonesAttuned: 0,
-    bestiaryKills: {},
-    unlockedFeats: [],
-    townUpgrades: { apothecary: 0, smithy: 0, watchtower: 0 },
     ...overrides,
   };
 }
@@ -144,45 +140,6 @@ test('pathfinding does not cut diagonally past blocking wall corners', () => {
   }
 });
 
-test('bestiary ranks are codex honors only: no derived-stat or damage effect', () => {
-  const player = makeTestPlayer();
-  const baseFlags = makeTestFlags();
-  const hunterFlags = makeTestFlags({ bestiaryKills: { crypt_skeleton: 3 } });
-  const slayerFlags = makeTestFlags({ bestiaryKills: { crypt_skeleton: 8, plague_rat: 8 } });
-
-  const baseStats = computeDerivedStats(player, baseFlags);
-  const slayerStats = computeDerivedStats(player, slayerFlags);
-
-  // Ranks grant no stats after the cut pass: derived stats are identical.
-  assert.deepEqual(slayerStats, baseStats);
-  assert.equal(computeBestiaryRanks(hunterFlags).unlockedHunters, 1);
-  assert.equal(computeBestiaryRanks(slayerFlags).unlockedSlayers, 2);
-  assert.equal(computeBestiaryRanks(baseFlags).unlockedHunters, 0);
-
-  const enemy: Enemy = {
-    id: 'test_skel',
-    archetype: 'crypt_skeleton',
-    name: 'Crypt Sentinel',
-    glyph: 's',
-    color: '#D6D3D1',
-    x: 3,
-    y: 2,
-    hp: 30,
-    maxHp: 30,
-    atk: 6,
-    def: 2,
-    xpReward: 15,
-    goldReward: 5,
-    alerted: true,
-    statuses: [],
-    description: 'Undead sentry patrolling the ossuary.',
-  };
-
-  const normalHit = calculatePlayerHit(player, enemy, 2, false, true, 0, baseFlags);
-  const hunterHit = calculatePlayerHit(player, enemy, 2, false, true, 0, hunterFlags);
-  assert.equal(hunterHit.damage, normalHit.damage);
-});
-
 test('bonusHp increases maxHp without mutating resolve or defense, and Lyra cipher is one-time', () => {
   const basePlayer = makeTestPlayer();
   const buffedPlayer: PlayerState = { ...basePlayer, bonusHp: 8 };
@@ -206,32 +163,6 @@ test('bonusHp increases maxHp without mutating resolve or defense, and Lyra ciph
     ...(applyChoice.extraActions ?? []),
   ];
   assert.ok(actions.some((a) => a.type === 'set_flag' && a.flag === 'cipherInscribed' && a.value === true));
-});
-
-test('feat predicates unlock town_patron and first_blood; runeforger and set_collector are gone', () => {
-  const basePlayer = makeTestPlayer();
-  const blade = createNamedRelic('sylvan_longblade');
-  const mantle = createNamedRelic('starlight_mantle');
-
-  const equippedPlayer: PlayerState = {
-    ...basePlayer,
-    kills: 10,
-    equipped: {
-      weapon: blade,
-      armor: mantle,
-    },
-  };
-  const flags = makeTestFlags({
-    townUpgrades: { apothecary: 1, smithy: 0, watchtower: 0 },
-  });
-
-  const firstBlood = FEAT_DEFS.find((f) => f.id === 'first_blood')!;
-  assert.equal(FEAT_DEFS.find((f) => f.id === 'runeforger'), undefined);
-  assert.equal(FEAT_DEFS.find((f) => f.id === 'set_collector'), undefined);
-  const townPatron = FEAT_DEFS.find((f) => f.id === 'town_patron')!;
-
-  assert.equal(firstBlood.check(equippedPlayer, flags), true);
-  assert.equal(townPatron.check(equippedPlayer, flags), true);
 });
 
 test('procedural dungeon floors 1-5 have connected spawn and stairs across 50 runs', () => {
@@ -468,16 +399,6 @@ test('P0 regression: side dungeons never spawn story quest nodes (bell / cache /
     bellSeen = d3.tiles.some((row) => row.some((t) => t.kind === 'whispering_bell'));
   }
   assert.ok(bellSeen, 'main Floor 3 should still spawn the Whispering Bell');
-});
-
-test('bestiary glyphs match enemy archetypes in world generators', () => {
-  assert.equal(BESTIARY_DEFS.blight_weaver.glyph, 'v');
-  assert.equal(BESTIARY_DEFS.cinder_wisp.glyph, 'w');
-  const d4 = generateDungeonFloor(4);
-  const wisp = d4.enemies.find((e) => e.archetype === 'cinder_wisp');
-  if (wisp) {
-    assert.equal(wisp.glyph, BESTIARY_DEFS.cinder_wisp.glyph);
-  }
 });
 
 test('P1 regression: floor-1 enemies survive a starter Vanguard opening hit', () => {

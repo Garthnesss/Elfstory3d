@@ -8,8 +8,7 @@ export type ActivePanel =
   | 'QUESTS'
   | 'MERCHANT'
   | 'TRAVEL'
-  | 'LEGEND'
-  | 'UPGRADES';
+  | 'LEGEND';
 
 export type ZoneId =
   | 'oakhaven'
@@ -412,13 +411,6 @@ export interface WorldFlags {
   /** Audit Tier 2: set once the run's guaranteed early gear drop lands. */
   firstGearDropped?: boolean;
   waystonesAttuned?: number;
-  bestiaryKills?: Partial<Record<EnemyArchetype, number>>;
-  unlockedFeats?: string[];
-  townUpgrades?: {
-    apothecary: number;
-    smithy: number;
-    watchtower: number;
-  };
 }
 
 export type QuestStatus = 'active' | 'completed' | 'failed';
@@ -468,7 +460,6 @@ export interface DialogueChoice {
     | { type: 'spend_gold'; amount: number }
     | { type: 'grant_buff'; text: string; hpBonus?: number }
     | { type: 'unlock_highspire' }
-    | { type: 'open_upgrades' }
     | { type: 'switch_companion' }
     | { type: 'close_dialogue' };
   extraActions?: Array<NonNullable<DialogueChoice['action']>>;

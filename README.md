@@ -1,6 +1,6 @@
 # ElfStory 3D
 
-A **True Perspective 3D** remake of **ElfStory** — turn-based tactical dungeon-crawler RPG in the browser starring elven outrider Garth "Big Dick" Elfstrom, playable in **Overhead Tactical 3D** (the default) or **3rd-Person Chase 3D**. Built with React 19 · TypeScript · Three.js · Vite · Tailwind CSS v4 · procedural Web Audio SFX & music · optional Firebase cloud saves.
+A **True Perspective 3D** remake of **ElfStory** — turn-based tactical dungeon-crawler RPG in the browser starring elven outrider Garth "Big Dick" Elfstrom, playable in **Overhead Tactical 3D** (the default) or **3rd-Person Chase 3D**. Built with React 19 · TypeScript · Three.js · Vite · Tailwind CSS v4 · procedural Web Audio SFX & music · local browser saves.
 
 ## What’s New in Perspective 3D
 - **Intuitive Cardinal 3D Movement & Camera (`W/A/S/D` & Mouse Orbit)**: Walk straight ahead with `W`/`↑`, strafe cleanly left/right down corridors, drag with the mouse or press `C / E` / `[ / ]` to turn 90° without spending turns, and press `V` to switch between **Overhead Tactical** and **3rd Person Chase**.
@@ -14,7 +14,7 @@ A **True Perspective 3D** remake of **ElfStory** — turn-based tactical dungeon
 ## Quick start
 
 ```bash
-npm install --legacy-peer-deps   # plain install hits a peer-resolution conflict (see HANDOFF.md)
+npm install                       # plain install works since Firebase was removed (Nov 17, 2026)
 npm run dev                       # Vite dev server on http://0.0.0.0:3000
 npm run lint                      # tsc --noEmit
 npm test                          # node test runner over tests/*.test.ts

@@ -32,46 +32,46 @@ export function formatPlayTime(ms: number): string {
 /** Epilogue lines reflecting the run's major choices (Ledger, Blight, Bell). */
 function epilogueLines(flags: WorldFlags): string[] {
   const lines: string[] = [
-    'With Malakor unmade, the cinder-throne cools for the first time in an age. Ash drifts up through the Sunken Citadel like snow in reverse, and the Ember Blight — starved of its sovereign — begins, slowly, to gutter out.',
+    'With Malakor unmade, the cinder-throne cools for the first time in an age. The Ember Blight gutters out. Somewhere far above, Oakhaven feels the change, looks around, and reluctantly concludes that Garth did it.',
   ];
   if (flags.bellChoice === 'attuned_lyra') {
     lines.push(
-      'In Highspire, Archivist Lyra rings the attuned Whispering Bell once at dawn. Its note carries over the Vale: a ward renewed, a promise kept.'
+      'In Highspire, Archivist Lyra rings the attuned Whispering Bell once at dawn. Its note carries over the Vale: a ward renewed, a promise kept. She files your name under “Heroes (Unexpected).”'
     );
   } else if (flags.bellChoice === 'sold_corvus') {
     lines.push(
-      'The Whispering Bell hangs silent in Magistrate Corvus’s vault, an heirloom of a reign that ended without it. What he paid for it buys roads, roofs, and quiet.'
+      'The Whispering Bell hangs silent in Magistrate Corvus’s vault. What he paid for it buys roads, roofs, and quiet. He sends you an invoice for the paperwork anyway.'
     );
   } else if (flags.bellChoice === 'shattered_self') {
     lines.push(
-      'The Bell you shattered sings on inside you — a low cinder-hum beneath your heartbeat, the Sovereign’s own surge turned to your keeping.'
+      'The Bell you shattered sings on inside you — a low cinder-hum beneath your heartbeat. You tell everyone it is the sound of destiny. It is mostly indigestion.'
     );
   }
   if (flags.caravanChoice === 'arrested_vex') {
     lines.push(
-      'The Contraband Ledger, delivered to Warden Vance, closes the smuggler roads beneath Oakhaven. The outpost breathes easier, and so does the Vale.'
+      'The Contraband Ledger, delivered to Warden Vance, closes the smuggler roads beneath Oakhaven. Vance shakes your hand, which he has never done, and immediately regrets it, which he has always done.'
     );
   } else if (flags.caravanChoice === 'smuggler_pact') {
     lines.push(
-      'Your shadow pact with Vex the Quiet holds: certain doors in Oakhaven will never quite close to you again, and certain ledgers will never bear your name.'
+      'Your shadow pact with Vex the Quiet holds: certain doors in Oakhaven will never close to you again. Vex still won’t say your name out loud. Nobody can say it with a straight face.'
     );
   }
   if (flags.blightChoice === 'cantor_appeased') {
     lines.push(
-      'Vaelen, the Bone Cantor, was laid to rest by words rather than steel — the Reliquary’s dirges have fallen silent at last.'
+      'Vaelen, the Bone Cantor, was laid to rest by words rather than steel. His last request was that you never sing. You have honoured it, mostly.'
     );
   } else if (flags.blightChoice === 'herbs_gathered') {
     lines.push(
-      'Mira’s apothecary, restocked with Pale Nightbloom, tends the blight-sick of Oakhaven back to health one draught at a time.'
+      'Mira’s apothecary, restocked with Pale Nightbloom, tends the blight-sick of Oakhaven back to health. She names a wart cream after you. It sells well.'
     );
   }
   if (flags.malakorWeakened) {
     lines.push(
-      'Those who study such things will note the Sovereign’s ward was broken before the final descent — and that you broke it.'
+      'Those who study such things will note the Sovereign’s ward was broken before the final descent — and that you broke it. You will mention this at every dinner for the rest of your life.'
     );
   }
   lines.push(
-    'But the stair below Floor 5 does not end. It never ended. The Endless Abyss waits with its lanterns lit, for the outrider who has already proven the dark can be beaten.'
+    'But the stair below Floor 5 does not end. The Endless Abyss waits with its lanterns lit. The town would very much like you to go down there for a while.'
   );
   return lines;
 }
