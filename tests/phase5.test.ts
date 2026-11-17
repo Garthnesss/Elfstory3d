@@ -83,14 +83,14 @@ test('ascension: cycle multiplier table matches the Phase 5 spec', () => {
   assert.equal(normalizeCycle(Number.NaN), 0);
 });
 
-test('ascension: cycle 0 at Standard is identity against the P1 pins', () => {
+test('ascension: cycle 0 at Standard is identity against the current pins', () => {
   resetScaling();
   const skeleton = createEnemy('crypt_skeleton', 0, 0, 1);
   assert.equal(skeleton.hp, 58);
   assert.equal(skeleton.atk, 11);
   const malakor = createEnemy('boss_malakor', 0, 0, 5);
-  assert.equal(malakor.hp, 1000);
-  assert.equal(malakor.atk, 36);
+  assert.equal(malakor.hp, 1750);
+  assert.equal(malakor.atk, 55);
   // The composed scaler still returns the enemy untouched.
   const rat = createEnemy('plague_rat', 0, 0, 1);
   assert.equal(scaleEnemyForDifficulty(rat, 'standard', 0), rat);
@@ -105,8 +105,8 @@ test('ascension: cycle 1 scales a normal enemy and a story boss', () => {
   assert.equal(skeleton.maxHp, 78);
   assert.equal(skeleton.atk, 14); // round(11 * 1.25)
   const malakor = createEnemy('boss_malakor', 0, 0, 5);
-  assert.equal(malakor.hp, 1350); // 1000 * 1.35
-  assert.equal(malakor.atk, 45); // 36 * 1.25
+  assert.equal(malakor.hp, 2363); // 1750 * 1.35
+  assert.equal(malakor.atk, 69); // 55 * 1.25
   resetScaling();
 });
 
@@ -117,8 +117,8 @@ test('ascension: cycle 3 scales a normal enemy and a story boss', () => {
   assert.equal(skeleton.hp, 119); // round(58 * 2.05)
   assert.equal(skeleton.atk, 19); // round(11 * 1.75)
   const malakor = createEnemy('boss_malakor', 0, 0, 5);
-  assert.equal(malakor.hp, 2050); // 1000 * 2.05
-  assert.equal(malakor.atk, 63); // 36 * 1.75
+  assert.equal(malakor.hp, 3587); // 1750 * 2.05
+  assert.equal(malakor.atk, 96); // 55 * 1.75
   resetScaling();
 });
 
@@ -131,16 +131,16 @@ test('ascension: side bosses compose through createEnemy + promote + tune', () =
     assert.ok(boss, 'Morvath is placed on barrow floor 2');
     return boss;
   };
-  // Cycle 0 pins the P1 side-boss tuning exactly (376 HP / 24 ATK).
+  // Cycle 0 pins the audit-retuned side-boss tuning exactly (617 HP / 37 ATK).
   const c0 = morvathAt(0);
-  assert.equal(c0.hp, 376);
-  assert.equal(c0.atk, 24);
+  assert.equal(c0.hp, 617);
+  assert.equal(c0.atk, 37);
   const c1 = morvathAt(1);
-  assert.equal(c1.hp, 509); // 376 * 1.35 through the promote/tune pipeline
-  assert.equal(c1.atk, 31);
+  assert.equal(c1.hp, 834); // 617 * 1.35 through the promote/tune pipeline
+  assert.equal(c1.atk, 47);
   const c3 = morvathAt(3);
-  assert.equal(c3.hp, 774);
-  assert.equal(c3.atk, 42);
+  assert.equal(c3.hp, 1269);
+  assert.equal(c3.atk, 65);
   resetScaling();
 });
 

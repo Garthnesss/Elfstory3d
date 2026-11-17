@@ -1744,20 +1744,26 @@ export default function App() {
     ): { nextPlayer: PlayerState; leveledUp: boolean } => {
       // Phase 4: the run's difficulty tier scales all granted XP here, in
       // the single grant function (Story ×1.15, Standard ×1.0, Hardened
-      // ×1.10). The ×1.30 level curve below is P1 tuning and untouched.
+      // ×1.10). The level curve below was ×1.30 in P1; the Nov 2026 audit
+      // retune steepened it to ×1.48 (see world.ts KILL_XP_FACTOR).
       let next = { ...p, xp: p.xp + scaleXpForDifficulty(gainedXp, difficultyRef.current) };
       let leveledUp = false;
       while (next.xp >= next.xpToNext) {
         next.xp -= next.xpToNext;
         next.level += 1;
-        next.xpToNext = Math.round(next.xpToNext * 1.3);
+        next.xpToNext = Math.round(next.xpToNext * 1.48);
         next.attributePoints += 2;
         next.skillPoints += 1;
         const d = computeDerivedStats(next, flagsOverride ?? worldFlags);
+        // Audit Tier 1: leveling grants only the *increase* in max HP/MP,
+        // not a full restore — a free full heal every ~10 kills erased
+        // attrition entirely. (The companion below already worked this way.)
+        const hpDelta = d.maxHp - next.maxHp;
+        const manaDelta = d.maxMana - next.maxMana;
         next.maxHp = d.maxHp;
         next.maxMana = d.maxMana;
-        next.hp = d.maxHp;
-        next.mana = d.maxMana;
+        next.hp = Math.min(d.maxHp, next.hp + hpDelta);
+        next.mana = Math.min(d.maxMana, next.mana + manaDelta);
         if (next.companion) {
           const compMax = companionMaxHpFor(next.companion.kind, next.level);
           const compDelta = compMax - next.companion.maxHp;
@@ -2091,7 +2097,7 @@ export default function App() {
           ? Math.random() < 0.35
             ? createRandomSetRelic(zone.depth)
             : generateProceduralItem(zone.depth, { minRarity: 'Epic' })
-          : Math.random() < 0.28
+          : Math.random() < 0.18
           ? createConsumable(Math.random() < 0.6 ? 'heal_potion' : 'mana_potion', 1)
           : generateProceduralItem(zone.depth, { minRarity: minRar });
         nextZ.loot.push({
@@ -3503,22 +3509,33 @@ export default function App() {
 
       if (tile.kind === 'shrine') {
         soundEngine.playSpell();
+        // Audit Tier 1: the renewal is once per shrine — a repeatable free
+        // full heal made dungeon attrition optional. Respec stays free and
+        // repeatable (it is a build tool, not recovery).
+        const shrineSpent = Boolean(tile.used);
         setSpecialPrompt({
           title: 'Glyph Shrine of Renewal',
           subtitle: 'Restorative & Build Respec Altar',
-          body: 'Ancient runes hum around this stone altar. You may restore your vigor or clear your learned attributes and skills to test an entirely new build.',
+          body: shrineSpent
+            ? 'The altar’s renewal has been spent — its runes glow only faintly now. You may still clear your learned attributes and skills to test an entirely new build.'
+            : 'Ancient runes hum around this stone altar. You may restore your vigor (once — the renewal does not return) or clear your learned attributes and skills to test an entirely new build.',
           options: [
-            {
-              id: 'heal',
-              label: 'Commune for Full HP & Mana Restoration (Free)',
-              tone: 'primary',
-              onSelect: () => {
-                const d = computeDerivedStats(player, worldFlags);
-                setPlayer((cur) => ({ ...cur, hp: d.maxHp, mana: d.maxMana, statuses: [] }));
-                soundEngine.playHeal();
-                setSpecialPrompt(null);
-              },
-            },
+            ...(shrineSpent
+              ? []
+              : [
+                  {
+                    id: 'heal',
+                    label: 'Commune for Full HP & Mana Restoration (Once per Shrine)',
+                    tone: 'primary' as const,
+                    onSelect: () => {
+                      tile.used = true;
+                      const d = computeDerivedStats(player, worldFlags);
+                      setPlayer((cur) => ({ ...cur, hp: d.maxHp, mana: d.maxMana, statuses: [] }));
+                      soundEngine.playHeal();
+                      setSpecialPrompt(null);
+                    },
+                  },
+                ]),
             {
               id: 'respec',
               label: 'Reset All Attributes & Skills for Fresh Build (Free at Shrine)',
@@ -4059,7 +4076,7 @@ export default function App() {
 
       const applyEchoIfTriggered = (enemy: Enemy) => {
         if (echoChance > 0 && enemy.hp > 0 && Math.random() < echoChance) {
-          const mult = echoRank === 1 ? 0.5 : echoRank === 2 ? 0.65 : 0.85;
+          const mult = echoRank === 1 ? 0.45 : echoRank === 2 ? 0.55 : 0.7;
           const echoHit = calculatePlayerHit(nextP, enemy, mult, true, false, 0, activeFlags);
           enemy.hp -= echoHit.damage;
           spawnFloating(enemy.x, enemy.y, `-${echoHit.damage} ECHO`, '#60A5FA');
@@ -4332,8 +4349,10 @@ export default function App() {
           if (res.victoryTriggered) victoryTriggered = true;
         }
       } else if (skillId === 'ember_lance') {
-        const mult = rank === 1 ? 1.3 : rank === 2 ? 1.6 : 1.95;
-        const base = rank === 1 ? 14 : rank === 2 ? 18 : 22;
+        // Audit Tier 1: trimmed from 1.3/1.6/1.95x + 14/18/22 — with Arcane
+        // Echo it deleted any non-boss enemy in a single round at any depth.
+        const mult = rank === 1 ? 1.25 : rank === 2 ? 1.45 : 1.55;
+        const base = rank === 1 ? 10 : rank === 2 ? 13 : 13;
         const hit = calculatePlayerHit(nextP, targetEnemy, mult, true, false, 0, activeFlags);
         const total = base + hit.damage;
         targetEnemy.hp -= total;
@@ -4908,10 +4927,17 @@ export default function App() {
       if (rem > 0) nextProdCds[k as ProdigyId] = rem;
     }
 
+    // Audit Tier 1: a dungeon field rest is a breather, not a sanctuary —
+    // it restores up to half of max HP/MP. Full restoration is for towns.
+    // (Resting used to full-restore anywhere, which erased attrition.)
+    const fieldRest = !currentZone.isTown;
+    const restHpCap = fieldRest ? Math.floor(d.maxHp / 2) : d.maxHp;
+    const restManaCap = fieldRest ? Math.floor(d.maxMana / 2) : d.maxMana;
+
     const restedPlayer: PlayerState = {
       ...player,
-      hp: d.maxHp,
-      mana: d.maxMana,
+      hp: Math.max(player.hp, restHpCap),
+      mana: Math.max(player.mana, restManaCap),
       cooldowns: {},
       prodigyCooldowns: nextProdCds,
       statuses: [],
@@ -4923,9 +4949,14 @@ export default function App() {
             ...player.companion,
             hp:
               player.companion.respawnCooldown > 0 && player.companion.respawnCooldown <= restTurns
-                ? player.companion.maxHp
+                ? fieldRest
+                  ? Math.floor(player.companion.maxHp / 2)
+                  : player.companion.maxHp
                 : player.companion.hp > 0
-                  ? player.companion.maxHp
+                  ? Math.max(
+                      player.companion.hp,
+                      fieldRest ? Math.floor(player.companion.maxHp / 2) : player.companion.maxHp
+                    )
                   : 0,
             respawnCooldown: Math.max(0, player.companion.respawnCooldown - restTurns),
           }
@@ -4936,9 +4967,11 @@ export default function App() {
     spawnFloating(player.x, player.y, 'RESTED', '#4EA885');
     const cauterizeRem = nextProdCds.cauterize ?? 0;
     pushLog(
-      `Rested safely (${restTurns}t): HP, Mana, and Skills restored.${
-        cauterizeRem > 0 ? ` (Cauterize cooldown: ${cauterizeRem}t)` : ''
-      }`,
+      `${
+        fieldRest
+          ? `Field rest (${restTurns}t): HP & Mana restored up to half; skills refreshed. Full rest needs a town.`
+          : `Rested safely (${restTurns}t): HP, Mana, and Skills restored.`
+      }${cauterizeRem > 0 ? ` (Cauterize cooldown: ${cauterizeRem}t)` : ''}`,
       'arcane',
       restedPlayer.turnsElapsed
     );

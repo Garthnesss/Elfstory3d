@@ -6,8 +6,9 @@
 // enemies spawned afterwards — zones already generated keep the stats their
 // enemies were created with.
 //
-// The P1 tuning constants in world.ts (createEnemy bases, story boss stats,
-// SIDE_BOSS_TUNE) and the ×1.30 XP curve are the STANDARD tier, untouched.
+// The tuning constants in world.ts (createEnemy bases, story boss stats,
+// SIDE_BOSS_TUNE) and the XP curve are the STANDARD tier (rebalanced in the
+// Nov 2026 audit pass: boss stats up, kill XP x0.45, curve x1.48).
 // Tiers layer multipliers on top at enemy creation / XP grant time; at
 // Standard every multiplier is exactly 1.0, so Standard play is bit-for-bit
 // the P1 game.

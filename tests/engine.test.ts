@@ -493,7 +493,7 @@ test('P1 regression: floor-1 enemies survive a starter Vanguard opening hit', ()
 
 test('P1 regression: final boss out-stats every side boss (no Kaelthar inversion)', () => {
   const malakor = createEnemy('boss_malakor', 0, 0, 5);
-  assert.equal(malakor.hp, 1000);
+  assert.equal(malakor.hp, 1750);
   const frost = generateSideDungeonFloor('frost', 3);
   const kaelthar = frost.enemies.find((e) => e.id === 'boss_kaelthar');
   assert.ok(kaelthar, 'Kaelthar should guard frost_3');
@@ -501,11 +501,11 @@ test('P1 regression: final boss out-stats every side boss (no Kaelthar inversion
   assert.ok(kaelthar.atk <= malakor.atk, `Kaelthar ATK ${kaelthar.atk} must not exceed Malakor ${malakor.atk}`);
   const barrow = generateSideDungeonFloor('barrow', 2);
   const morvath = barrow.enemies.find((e) => e.id === 'boss_morvath');
-  assert.ok(morvath && morvath.hp < 420, 'Morvath should sit below Vaelen-tier HP');
+  assert.ok(morvath && morvath.hp < 620, 'Morvath should sit below Vaelen-tier HP');
 });
 
 test('P1 regression: story bosses are scaled to arrival level, not 3-hit kills', () => {
-  assert.equal(createEnemy('boss_bone_cantor', 0, 0, 2).hp, 420);
-  assert.equal(createEnemy('boss_ashen_inquisitor', 0, 0, 4).hp, 690);
-  assert.equal(createEnemy('boss_malakor', 0, 0, 5).atk, 36);
+  assert.equal(createEnemy('boss_bone_cantor', 0, 0, 2).hp, 620);
+  assert.equal(createEnemy('boss_ashen_inquisitor', 0, 0, 4).hp, 1250);
+  assert.equal(createEnemy('boss_malakor', 0, 0, 5).atk, 55);
 });

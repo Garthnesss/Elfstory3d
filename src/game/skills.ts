@@ -196,9 +196,9 @@ export const SKILLS: Record<SkillId, SkillDef> = {
     glyph: '✦',
     summary: 'Passive: Heighten evasion and retaliate when enemies miss.',
     rankDescriptions: [
-      '+6% Dodge Chance and +5% Crit Chance.',
-      '+10% Dodge Chance, +8% Crit Chance, and dodging restores 2 Mana.',
-      '+14% Dodge Chance, +12% Crit, and dodging triggers a free counter-slash!',
+      '+8% Dodge Chance and +5% Crit Chance.',
+      '+13% Dodge Chance, +8% Crit Chance, and dodging restores 2 Mana.',
+      '+18% Dodge Chance, +12% Crit, and dodging triggers a free counter-slash!',
     ],
     scalingNote: 'Synergizes with Runecaster Mana',
   },
@@ -230,14 +230,14 @@ export const SKILLS: Record<SkillId, SkillDef> = {
     kind: 'active',
     targeting: 'ranged',
     range: 5,
-    manaCost: 6,
-    cooldown: 1,
+    manaCost: 7,
+    cooldown: 2,
     glyph: '🜂',
     summary: 'Project a piercing lance of cinder fire, scorching and igniting the target.',
     rankDescriptions: [
-      'Range 5: Deals 14 + 130% Spell Power fire damage and inflicts Burn (3/t, 2t).',
-      'Range 6: Deals 18 + 160% Spell Power, Burn (5/t, 3t), and pierces 1 tile behind.',
-      'Range 6: Deals 22 + 195% Spell Power, Burn (7/t, 3t), and explodes in a 1-tile radius.',
+      'Range 5: Deals 10 + 125% Spell Power fire damage and inflicts Burn (3/t, 2t).',
+      'Range 6: Deals 13 + 145% Spell Power, Burn (5/t, 3t), and pierces 1 tile behind.',
+      'Range 6: Deals 13 + 155% Spell Power, Burn (7/t, 3t), and explodes in a 1-tile radius.',
     ],
     scalingNote: 'Scales with Arcana & Spell Power',
   },
@@ -409,7 +409,7 @@ export function computeDerivedStats(player: PlayerState, worldFlags?: WorldFlags
 
   const evasiveRank = player.skills.evasive_instinct ?? 0;
   if (evasiveRank > 0) {
-    dodgeChance += evasiveRank === 1 ? 6 : evasiveRank === 2 ? 10 : 14;
+    dodgeChance += evasiveRank === 1 ? 8 : evasiveRank === 2 ? 13 : 18;
     critChance += evasiveRank === 1 ? 5 : evasiveRank === 2 ? 8 : 12;
   }
 

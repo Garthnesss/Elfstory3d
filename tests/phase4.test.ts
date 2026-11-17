@@ -85,12 +85,12 @@ test('difficulty: Standard is identity against the P1 constants (normal enemy)',
 test('difficulty: Standard is identity against the P1 constants (story boss)', () => {
   setCurrentDifficulty('standard');
   const malakor = createEnemy('boss_malakor', 0, 0, 5);
-  assert.equal(malakor.hp, 1000);
-  assert.equal(malakor.maxHp, 1000);
-  assert.equal(malakor.atk, 36);
+  assert.equal(malakor.hp, 1750);
+  assert.equal(malakor.maxHp, 1750);
+  assert.equal(malakor.atk, 55);
   const vaelen = createEnemy('boss_bone_cantor', 0, 0, 2);
-  assert.equal(vaelen.hp, 420);
-  assert.equal(vaelen.atk, 21);
+  assert.equal(vaelen.hp, 620);
+  assert.equal(vaelen.atk, 30);
 });
 
 test('difficulty: Story scales enemy HP/ATK by 0.75 / 0.85', () => {
@@ -100,8 +100,8 @@ test('difficulty: Story scales enemy HP/ATK by 0.75 / 0.85', () => {
   assert.equal(skeleton.maxHp, 44);
   assert.equal(skeleton.atk, 9); // round(11 * 0.85)
   const malakor = createEnemy('boss_malakor', 0, 0, 5);
-  assert.equal(malakor.hp, 750);
-  assert.equal(malakor.atk, 31); // round(36 * 0.85)
+  assert.equal(malakor.hp, 1313);
+  assert.equal(malakor.atk, 47); // round(55 * 0.85)
   setCurrentDifficulty('standard');
 });
 
@@ -111,8 +111,8 @@ test('difficulty: Hardened scales enemy HP/ATK by 1.25 / 1.15', () => {
   assert.equal(skeleton.hp, 73); // round(58 * 1.25)
   assert.equal(skeleton.atk, 13); // round(11 * 1.15)
   const malakor = createEnemy('boss_malakor', 0, 0, 5);
-  assert.equal(malakor.hp, 1250);
-  assert.equal(malakor.atk, 41); // round(36 * 1.15)
+  assert.equal(malakor.hp, 2188);
+  assert.equal(malakor.atk, 63); // round(55 * 1.15)
   setCurrentDifficulty('standard');
 });
 
@@ -124,16 +124,16 @@ test('difficulty: side bosses scale through createEnemy + promote + tune', () =>
     assert.ok(boss, 'Morvath is placed on barrow floor 2');
     return boss;
   };
-  // Standard pins the P1 side-boss tuning exactly (376 HP / 24 ATK).
+  // Standard pins the audit-retuned side-boss tuning exactly (617 HP / 37 ATK).
   const standard = morvathAt('standard');
-  assert.equal(standard.hp, 376);
-  assert.equal(standard.atk, 24);
+  assert.equal(standard.hp, 617);
+  assert.equal(standard.atk, 37);
   const story = morvathAt('story');
-  assert.equal(story.hp, 281);
-  assert.equal(story.atk, 21);
+  assert.equal(story.hp, 461);
+  assert.equal(story.atk, 32);
   const hardened = morvathAt('hardened');
-  assert.equal(hardened.hp, 471);
-  assert.equal(hardened.atk, 28);
+  assert.equal(hardened.hp, 773);
+  assert.equal(hardened.atk, 43);
   setCurrentDifficulty('standard');
   assert.equal(getCurrentDifficulty(), 'standard');
 });

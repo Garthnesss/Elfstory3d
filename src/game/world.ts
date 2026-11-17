@@ -261,8 +261,19 @@ export function createHighspireMap(): ZoneMap {
  * At Standard difficulty the scaler is the identity and the P1 constants
  * below are the exact stats.
  */
+/**
+ * Audit Tier 1 (Nov 2026): the XP economy paid ~13x the level design's
+ * assumption (a full-clear route yielded ~20,000 XP against 1,555 needed
+ * for the designed top level), so heroes met every boss 5-9 levels high.
+ * Kill XP is trimmed here, at the single creation funnel; quest XP is
+ * one-time and untouched. Combined with the x1.48 level curve, a
+ * full-clear route now lands heroes near each zone's recommended band.
+ */
+export const KILL_XP_FACTOR = 0.45;
+
 export function createEnemy(archetype: EnemyArchetype, x: number, y: number, depth: number): Enemy {
-  return scaleEnemyForDifficulty(createEnemyBase(archetype, x, y, depth));
+  const enemy = scaleEnemyForDifficulty(createEnemyBase(archetype, x, y, depth));
+  return { ...enemy, xpReward: Math.max(1, Math.round(enemy.xpReward * KILL_XP_FACTOR)) };
 }
 
 function createEnemyBase(archetype: EnemyArchetype, x: number, y: number, depth: number): Enemy {
@@ -550,9 +561,9 @@ function createEnemyBase(archetype: EnemyArchetype, x: number, y: number, depth:
         color: '#F472B6',
         x,
         y,
-        hp: 420,
-        maxHp: 420,
-        atk: 21,
+        hp: 620,
+        maxHp: 620,
+        atk: 30,
         def: 5,
         xpReward: 180,
         goldReward: 65,
@@ -570,9 +581,9 @@ function createEnemyBase(archetype: EnemyArchetype, x: number, y: number, depth:
         color: '#FB923C',
         x,
         y,
-        hp: 690,
-        maxHp: 690,
-        atk: 29,
+        hp: 1250,
+        maxHp: 1250,
+        atk: 45,
         def: 7,
         xpReward: 280,
         goldReward: 110,
@@ -590,9 +601,9 @@ function createEnemyBase(archetype: EnemyArchetype, x: number, y: number, depth:
         color: '#EF4444',
         x,
         y,
-        hp: 1000,
-        maxHp: 1000,
-        atk: 36,
+        hp: 1750,
+        maxHp: 1750,
+        atk: 55,
         def: 9,
         xpReward: 550,
         goldReward: 250,
@@ -1596,7 +1607,10 @@ export function createOverworldMap(): ZoneMap {
   zone.tiles[4][44] = makeTile(44, 4, 'road');
 
   // Populate overworld encounters (kept clear of Oakhaven west road spawn)
-  const brigandCaptain = promoteEnemyRank(createEnemy('shadow_stalker', 37, 16, 2), 2, 'rare');
+  // Audit Tier 1: the rare promotion stacked on an elite archetype made
+  // this Lv 1-6 zone's brigand harder than most dungeon bosses (141 HP).
+  // He stays a named tollhouse threat, at his archetype's honest stats.
+  const brigandCaptain = createEnemy('shadow_stalker', 37, 16, 2);
   brigandCaptain.id = 'overworld_brigand_captain';
   brigandCaptain.name = 'Harlan, Silverbridge Brigand';
   brigandCaptain.rankTitle = 'Rare Outlaw · Tollhouse';
@@ -1608,10 +1622,10 @@ export function createOverworldMap(): ZoneMap {
     createEnemy('goblin_skirmisher', 28, 17, 2),
     createEnemy('goblin_skirmisher', 34, 16, 2),
     brigandCaptain,
-    createEnemy('blight_weaver', 39, 21, 3),
+    createEnemy('blight_weaver', 39, 21, 2),
     createEnemy('plague_rat', 37, 23, 2),
-    createEnemy('iron_golem', 40, 5, 4),
-    createEnemy('cinder_wisp', 35, 6, 3),
+    createEnemy('iron_golem', 40, 5, 2),
+    createEnemy('cinder_wisp', 35, 6, 2),
   ];
 
   zone.loot = [
@@ -1785,14 +1799,15 @@ export function generateSideDungeonFloor(
       effectiveDepth + 1,
       'randboss'
     );
-    // P1: side bosses are tuned explicitly so none of them out-stats the
-    // final boss (the Kaelthar inversion: 359 HP / 57 ATK vs Malakor's
-    // 230 / 24 before this pass). Kaelthar needs the deepest cut because
-    // his warden base and effective depth 7 stack the highest.
+    // Side bosses are tuned explicitly so none of them out-stats the
+    // final boss. P1 cut Kaelthar hardest (his warden base + effective
+    // depth 7 stacked highest); the Nov 2026 audit pass raised every
+    // boss, and Malakor's new 1500 HP / 50 ATK leaves headroom for all
+    // three to rise while staying below him.
     const SIDE_BOSS_TUNE: Record<string, { hp: number; atk: number }> = {
-      boss_morvath: { hp: 1.25, atk: 0.9 },
-      boss_vexis: { hp: 1.25, atk: 0.9 },
-      boss_kaelthar: { hp: 0.62, atk: 0.6 },
+      boss_morvath: { hp: 2.05, atk: 1.38 },
+      boss_vexis: { hp: 2.05, atk: 1.32 },
+      boss_kaelthar: { hp: 1.0, atk: 0.78 },
     };
     const tune = SIDE_BOSS_TUNE[meta.boss.id] ?? { hp: 1, atk: 1 };
     boss.hp = Math.round(boss.hp * tune.hp);
