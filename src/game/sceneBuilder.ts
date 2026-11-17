@@ -15,6 +15,19 @@ import { Tile, TileKind, ZoneMap } from './types';
 
 export type TileVisState = 'hidden' | 'memory' | 'lit';
 
+/**
+ * Explored-but-unseen tiles glow faintly with their own texture. Without it
+ * a "memory" tile is lit only by whatever light happens to reach it, so in an
+ * unlit dungeon the rooms you just left rendered near-black (Nov 16 playtest).
+ */
+const MEMORY_GLOW_HEX = 0x2a3550;
+function memoryGlow(
+  tex: THREE.Texture,
+  isMemory: boolean
+): { emissive?: number; emissiveMap?: THREE.Texture } {
+  return isMemory ? { emissive: MEMORY_GLOW_HEX, emissiveMap: tex } : {};
+}
+
 export interface SceneGeometries {
   floor: THREE.PlaneGeometry;
   ceiling: THREE.PlaneGeometry;
@@ -186,6 +199,7 @@ export class SceneMaterialPool {
         transparent,
         opacity,
         depthWrite: !transparent,
+        ...memoryGlow(tex, state === 'memory'),
       });
 
     const arr = [
@@ -361,7 +375,9 @@ export function buildZoneTerrain(
         );
         wallCapMesh = new THREE.Mesh(geos.wallCap, capMat);
         wallCapMesh.position.y = wallH - 0.03;
-        addShadowFlag(wallCapMesh, true, true);
+        // Receive only: the cap's shadow falls inside the wall's own, so
+        // casting it just doubled the shadow-pass draw calls per wall.
+        addShadowFlag(wallCapMesh, false, true);
         group.add(wallCapMesh);
 
         isTallObstacle = true;
@@ -988,6 +1004,18 @@ export function buildZoneTerrain(
       }
 
       root.add(group);
+
+      // Terrain is static: freeze every local matrix so three.js stops
+      // recomposing thousands of them each frame. Only the parts the render
+      // loop animates keep auto-update; syncTileNode calls updateMatrix()
+      // on the two meshes it moves (cutaway walls, chest lids).
+      group.traverse((obj) => {
+        obj.matrixAutoUpdate = false;
+        obj.updateMatrix();
+      });
+      if (animatedMesh) animatedMesh.matrixAutoUpdate = true;
+      if (treeCrownGroup) treeCrownGroup.matrixAutoUpdate = true;
+
       const node: TileNode = {
         x,
         y,
@@ -1069,6 +1097,7 @@ export function syncTileNode(
       const cutHeight = isCutaway ? 0.24 : node.wallBaseHeight;
       node.wallMesh.scale.set(1, cutHeight, 1);
       node.wallMesh.position.y = cutHeight / 2;
+      node.wallMesh.updateMatrix();
       node.wallMesh.renderOrder = 0;
       node.wallMesh.castShadow = !isCutaway;
     }
@@ -1081,6 +1110,7 @@ export function syncTileNode(
             new THREE.MeshLambertMaterial({
               map: getWallTopTexture(biome, node.biomeVariant),
               color: isMem ? memTint : 0xffffff,
+              ...memoryGlow(getWallTopTexture(biome, node.biomeVariant), isMem),
             })
         );
       }
@@ -1108,6 +1138,7 @@ export function syncTileNode(
             new THREE.MeshLambertMaterial({
               map: getRoadTexture(biome, node.biomeVariant),
               color: isMem ? memTint : 0xffffff,
+              ...memoryGlow(getRoadTexture(biome, node.biomeVariant), isMem),
             })
         );
       } else {
@@ -1119,6 +1150,10 @@ export function syncTileNode(
             new THREE.MeshLambertMaterial({
               map: getFloorTexture(biome, node.biomeVariant, node.isVaultInterior),
               color: combinedTint,
+              ...memoryGlow(
+                getFloorTexture(biome, node.biomeVariant, node.isVaultInterior),
+                isMem
+              ),
             })
         );
       }
@@ -1159,6 +1194,7 @@ export function syncTileNode(
         node.chestLidMesh.rotation.x = 0;
         node.chestLidMesh.position.set(0, 0.3, 0);
       }
+      node.chestLidMesh.updateMatrix();
     }
   }
 

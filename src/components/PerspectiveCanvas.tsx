@@ -823,6 +823,10 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
       const spriteFrame = reduceMotion ? 0 : Math.floor(now / 380) % 2;
 
       const cullRadius = s.viewMode === 'tactical' ? 20 : 24;
+      // Ceilings face down, so the overhead camera only ever sees their
+      // culled back faces — one wasted draw call per floor tile. Draw them
+      // in Chase view only.
+      const showCeilings = s.viewMode !== 'tactical';
       s.cutawaySet.clear();
 
       const projectedStairs: Array<{ x: number; y: number; kind: 'stairs_down' | 'stairs_up' }> = [];
@@ -861,6 +865,7 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
         }
 
         syncTileNode(node, tile, inRange, isCutaway, animFrame, biome, s.zone.depth, mats);
+        if (node.ceilingMesh) node.ceilingMesh.visible = showCeilings;
 
         if (inRange && tile.visible && (tile.kind === 'stairs_down' || tile.kind === 'stairs_up')) {
           projectedStairs.push({ x: node.x, y: node.y, kind: tile.kind });
@@ -1461,6 +1466,27 @@ export const PerspectiveCanvas: React.FC<PerspectiveCanvasProps> = ({
           const { enemy, wx, wz, height } = item;
           const top = projectToScreen(wx, height, wz);
           if (!top.visible) continue;
+
+          // Threat marker: every foe in line of sight gets a red chevron,
+          // pinned to the screen edge when it stands outside the frame, so
+          // "Enemy sighted" never refers to something the view cannot show
+          // (an unlit corridor, or a foe just past the edge).
+          {
+            const pad = 12;
+            const mx = Math.max(pad, Math.min(viewW - pad, top.sx));
+            const my = Math.max(pad + 7, Math.min(viewH - pad, top.sy - 9));
+            hctx.beginPath();
+            hctx.moveTo(mx - 5, my - 7);
+            hctx.lineTo(mx + 5, my - 7);
+            hctx.lineTo(mx, my);
+            hctx.closePath();
+            hctx.lineWidth = 2;
+            hctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
+            hctx.stroke();
+            hctx.fillStyle = '#EF4444';
+            hctx.fill();
+          }
+
           const distScale = Math.max(0.65, Math.min(1.4, 3.2 / Math.max(1.2, Math.hypot(wx - s.camEye.x, wz - s.camEye.z))));
           const barW = Math.round(32 * distScale);
 

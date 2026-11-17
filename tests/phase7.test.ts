@@ -22,8 +22,11 @@ const pauseModal = readFileSync(
 test('Phase 7 ascend: pause menu can return to the Ending Screen for a completed run', () => {
   assert.ok(pauseModal.includes('canReturnToEnding'), 'modal accepts the return-to-ending gate');
   assert.ok(pauseModal.includes('Return to the Ending'), 'modal renders the button');
+  // The gate itself is behaviour-tested in tests/runRules.test.ts; this only
+  // pins that App feeds it the current run's flag (not the carried-over stamp).
   assert.ok(
-    app.includes('canReturnToEnding={Boolean(worldFlags.malakorDefeated)}'),
+    app.includes('canReturnToEnding={canOfferReturnToEnding({') &&
+      app.includes('malakorDefeated: Boolean(worldFlags.malakorDefeated),'),
     'gate is the current run\u2019s malakorDefeated flag (not the carried-over stamp)'
   );
   assert.ok(

@@ -76,6 +76,40 @@ Every place should be recognizable from a single screenshot — like a real game
 - **Dungeon identities**: Reliquary (moss-sunken stone), Ossuary (bone-pale), Ember (heat shimmer, ember crust), Crucible (forge-lit), Abyss (void purple) — strengthen the existing biome split with signature set-pieces, props and ambient lines per family, including the side dungeons (barrow / mire / frost).
 - **Gate**: each town and dungeon family instantly identifiable from a Top-view screenshot; no layout, balance or save changes (palettes/atmosphere/props only, new fields optional-with-defaults); `npm test` + `tsc` + build green; Garth's screenshot/play check per place.
 
+## Phase 8 — "Audit follow-ups" (Nov 16, 2026 audit; first tranche DONE, rest open)
+From the Nov 16 audit, partial playtest and fix pass (evidence in STATUS.md). Ordered by payoff.
+
+**Done Nov 16 (114/114 tests, tsc + build clean, uncommitted):**
+- ✅ Hardcore can no longer escape death through "Return to the Ending" outside a town.
+- ✅ Abyss saves bounded: at most 4 Abyss floors stored, so depth alone cannot hit the cloud cap.
+- ✅ Red threat chevron on every foe in line of sight, edge-pinned when off-frame.
+- ✅ Explored-but-unseen tiles stay readable in unlit dungeons.
+- ✅ Escape closes the expanded chronicle before the pause menu.
+- ✅ Renderer trims: frozen static matrices, no ceilings in Top view, no wall-cap shadows (saving unmeasured).
+
+**Open — performance (the game's weakest point next to its peers, which are 2D and run anywhere):**
+1. **Batch the terrain.** Replace per-tile meshes with `InstancedMesh` (or merged chunks) per material and visibility state. Target: Oakhaven under 150 draw calls from ~1,500. Gate: before/after draw-call and frame-time numbers on a real phone.
+2. **Measure on a phone.** Nothing in this project has been profiled off the development Mac. Do this before item 1 to set the target.
+3. **Idle the frame loop** when nothing animates and a modal covers the map; cap to 30 fps on battery / reduced-motion.
+4. **Kill the zone-entry hitch** (1,150 ms first build): pre-warm textures and shaders behind the title screen or a short fade.
+5. **Split the bundle:** load Firebase only on sign-in; split three.js into its own cached chunk. Now 1,853 kB / 531 kB gzip in one file.
+
+**Open — play feel (from the playtest):**
+6. **Narrow-screen overlaps:** Look / Map buttons cover the quest tracker; the tutorial card covers the hero and the D-pad.
+7. **Full zone map on desktop** (`M` currently opens fast travel; only touch has a Map button).
+8. **Attack-nearest / auto-fight key** — the genre's standard answer to repeated bump attacks.
+9. **Loot origin text:** items name the depth they were rolled at, so a Floor 1 mini-boss drop reads "recovered from the Frost-Bound Ossuary". Name the place it was found, or drop the claim.
+10. **Floor 1 gatekeeper check:** Skrag (74 HP) fell to four basic attacks at Lv 1. One observation — re-run `tools/difficulty_sim.py` for mini-bosses before changing anything.
+
+**Open — structure:**
+11. **Seeded runs.** Thread one seeded PRNG through `world.ts` / `loot.ts` instead of `Math.random`. Unlocks reproducible bug reports, deterministic tests without global swaps, shareable seeds and a daily run.
+12. **Keep shrinking App.tsx** by moving rules into pure `src/game/` modules with behaviour tests; retire the Phase 7 source-string tests as their logic moves out.
+
+**How ElfStory compares** (general knowledge of the genre — DCSS WebTiles, Brogue, Shattered Pixel Dungeon, Rogue Fable, Hoplite — not side-by-side play):
+- *Ahead:* full 3D with two camera views is rare for a browser roguelike; telegraphed enemy attacks give Hoplite-style readable tactics; towns, quests and branching dialogue make it more RPG than its peers; the shell (difficulty tiers, rebinding, gamepad, PWA, cloud saves, accessibility options) is more complete than most.
+- *Behind:* runs on far fewer devices than 2D peers (items 1–5); no seeds or daily challenge (item 11); fewer travel and fight conveniences — auto-fight, go-to-stairs, a full map (items 7–8); less build variety and replay pressure (12 skills in 3 trees; New Game+ only scales numbers — peers add run modifiers and many more classes); about 2–4 hours of unique content.
+- *Suggested direction, Garth's call:* fix reach first (items 1–5), then replay value (item 11 plus run modifiers on New Game+), before adding more content.
+
 ## Explicitly later (not this roadmap)
 - Platform achievements / lifetime stats beyond the 10 in-run feats — un-park with a distribution decision.
-- Code-splitting the 1.22 MB single JS chunk — un-park if load time becomes a measured problem.
+- Platform distribution, monetization, multiplayer — out of scope per PROJECT_TRUTH.

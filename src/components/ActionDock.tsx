@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { SKILLS } from '../game/skills';
 import { LogEntry, PlayerState, SkillId } from '../game/types';
 
@@ -34,6 +34,21 @@ export const ActionDock: React.FC<ActionDockProps> = ({
   onConfirmAimedTarget,
 }) => {
   const [logExpanded, setLogExpanded] = useState(false);
+
+  // Escape closes the expanded chronicle before anything else. Registered in
+  // the capture phase so it runs ahead of App's Escape cascade, which would
+  // otherwise open the pause menu and leave the chronicle covering the map.
+  useEffect(() => {
+    if (!logExpanded) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      setLogExpanded(false);
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  }, [logExpanded]);
 
   const healPotions = player.inventory
     .filter((i) => i.consumableKind === 'heal_potion')

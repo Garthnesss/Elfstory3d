@@ -50,6 +50,7 @@ import {
   readAllSlotStates,
   stampBundle,
 } from './game/saveSlots';
+import { canOfferReturnToEnding, pruneAbyssZones } from './game/runRules';
 import {
   LifetimeEvent,
   LifetimeStats,
@@ -1046,6 +1047,10 @@ export default function App() {
       // the bundle win; otherwise the live run's values fill in).
       const stamped: SavedBundle = {
         ...stampBundle(bundle),
+        // Audit (Nov 16): Abyss floors far from the player are dropped from
+        // the persisted copy so deep runs stay under the cloud size cap;
+        // they regenerate on entry. Live state is untouched.
+        zones: pruneAbyssZones(bundle.zones, bundle.currentZoneId),
         difficulty: bundle.difficulty ?? difficultyRef.current,
         completedAtMs: bundle.completedAtMs ?? completedAtMsRef.current ?? undefined,
         // Phase 5: cycle / hardcore / death stamp default from the live
@@ -6672,7 +6677,11 @@ export default function App() {
           authUser={authUser}
           cloudBusy={authBusy || cloudSaving}
           onSignIn={handleSignInGoogle}
-          canReturnToEnding={Boolean(worldFlags.malakorDefeated)}
+          canReturnToEnding={canOfferReturnToEnding({
+            malakorDefeated: Boolean(worldFlags.malakorDefeated),
+            hardcore,
+            inTown: Boolean(currentZone?.isTown),
+          })}
           onReturnToEnding={() => setGameState('VICTORY')}
           onResume={() => setGameState('PLAYING')}
           onSaveRun={async () => {

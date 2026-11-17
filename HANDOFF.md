@@ -1,5 +1,7 @@
 # ElfStory — Architecture & Handoff Guide
 
+> **Read this first (Nov 16, 2026).** This is the original handoff document and parts of it are now historical. Since Nov 15, 2026 the game renders with Three.js (`PerspectiveCanvas`), not HTML5 Canvas sprites; `sprites.ts` is gone; and the simplification pass removed Runeforge / `RUNE_ENCHANTS`, `rerollEquipmentAffix`, inscriptions, bestiary stat perks, companion stances and Prodigies (now skill-tree Capstones). The test count is 114, not 11. For the current state trust PROJECT_TRUTH.md, ARCHITECTURE.md and STATUS.md over the sections below.
+
 ## Overview
 **ElfStory** is a turn-based tactical dungeon-crawler RPG starring elven outrider **Garth Elfstrom**, built with React 19, TypeScript, Vite 8, Tailwind CSS v4, HTML5 Canvas tile/sprite rendering, procedural Web Audio SFX, and optional Firebase Auth + Firestore cloud saves.
 
